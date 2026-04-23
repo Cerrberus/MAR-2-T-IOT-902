@@ -1,0 +1,95 @@
+name: sensor-sensei
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sensei}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sensei}
+      POSTGRES_DB: ${POSTGRES_DB:-sensei}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sensei}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sensei}:${POSTGRES_PASSWORD:-sensei}@db:5432/${POSTGRES_DB:-sensei}
+      GATEWAY_TOKENS: ${GATEWAY_TOKENS:-dev-token}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SENSOR_COMMUNITY_ENABLED: ${SENSOR_COMMUNITY_ENABLED:-false}
+      SENSOR_COMMUNITY_URL: ${SENSOR_COMMUNITY_URL:-https://api.sensor.community/v1/push-sensor-data/}
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+      - ./openapi.yaml:/app/openapi.yaml:ro
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+      - ./scripts:/app/scripts
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/api/v1/health').read()"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sensei}:${POSTGRES_PASSWORD:-sensei}@db:5432/${POSTGRES_DB:-sensei}
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+
+  simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["sim"]
+    environment:
+      SIM_BASE_URL: http://api:8000
+      SIM_TOKEN: ${SIM_TOKEN:-dev-token}
+      SIM_DEVICES: ${SIM_DEVICES:-2}
+      SIM_INTERVAL: ${SIM_INTERVAL:-5}
+      SIM_EXTRA_ARGS: ${SIM_EXTRA_ARGS:-}
+    command:
+      - sh
+      - -c
+      - >-
+        python scripts/simulate_gateway.py
+        --base-url "$$SIM_BASE_URL"
+        --token "$$SIM_TOKEN"
+        --devices "$$SIM_DEVICES"
+        --interval "$$SIM_INTERVAL"
+        $$SIM_EXTRA_ARGS
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - ./scripts:/app/scripts
+
+volumes:
+  pgdata:
