@@ -7,7 +7,7 @@ from app.db import get_session
 from app.models import Device as DeviceModel
 from app.models import Measurement as MeasurementModel
 from app.routers.measurements import _row_to_measurement
-from app.schemas import Device, DeviceList, Location, Measurement
+from app.schemas import Device, DeviceList, DeviceUpdate, Location, Measurement
 
 router = APIRouter(prefix="/api/v1/devices", tags=["devices"])
 
@@ -23,6 +23,7 @@ async def _device_to_schema(session: AsyncSession, row: DeviceModel) -> Device:
         first_seen_at=row.first_seen_at,
         last_seen_at=row.last_seen_at,
         measurement_count=count or 0,
+        sensor_community_id=row.sensor_community_id,
     )
 
 
@@ -82,3 +83,24 @@ async def get_latest_measurement(
             },
         )
     return _row_to_measurement(row)
+
+
+@router.patch("/{device_id}", response_model=Device)
+async def update_device(
+    device_id: str,
+    payload: DeviceUpdate,
+    session: AsyncSession = Depends(get_session),
+    _token: str = Depends(require_gateway_token),
+) -> Device:
+    row = await session.get(DeviceModel, device_id)
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "device_not_found", "message": f"device {device_id} not found"},
+        )
+    fields = payload.model_dump(exclude_unset=True)
+    if "sensor_community_id" in fields:
+        row.sensor_community_id = fields["sensor_community_id"]
+    await session.commit()
+    await session.refresh(row)
+    return await _device_to_schema(session, row)

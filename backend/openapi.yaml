@@ -179,6 +179,35 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+    patch:
+      tags: [devices]
+      summary: Update device metadata
+      description: |
+        Update mutable device metadata. Currently used to assign the
+        sensor.community ID once the external registration has been done.
+      operationId: updateDevice
+      parameters:
+        - $ref: "#/components/parameters/DeviceIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceUpdate"
+      responses:
+        "200":
+          description: Updated device
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
   /api/v1/devices/{deviceId}/latest:
     get:
       tags: [devices]
@@ -398,6 +427,20 @@ components:
         measurement_count:
           type: integer
           minimum: 0
+        sensor_community_id:
+          type: integer
+          nullable: true
+          description: sensor.community sensor ID (set once registered upstream)
+          example: 12345
+
+    DeviceUpdate:
+      type: object
+      description: Partial update payload for device metadata. Fields are optional.
+      properties:
+        sensor_community_id:
+          type: integer
+          nullable: true
+          description: Set to null to disable forwarding, or to an integer to enable it
 
     DeviceList:
       type: object

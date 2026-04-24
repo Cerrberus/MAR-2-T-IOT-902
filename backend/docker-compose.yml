@@ -25,11 +25,13 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sensei}:${POSTGRES_PASSWORD:-sensei}@db:5432/${POSTGRES_DB:-sensei}
-      GATEWAY_TOKENS: ${GATEWAY_TOKENS:-dev-token}
+      GATEWAY_TOKENS: ${GATEWAY_TOKENS:-changeme}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      RELOAD: ${RELOAD:-false}
+      WORKERS: ${WORKERS:-2}
       SENSOR_COMMUNITY_ENABLED: ${SENSOR_COMMUNITY_ENABLED:-false}
       SENSOR_COMMUNITY_URL: ${SENSOR_COMMUNITY_URL:-https://api.sensor.community/v1/push-sensor-data/}
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: ["sh", "scripts/start.sh"]
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -47,6 +49,17 @@ services:
       timeout: 5s
       retries: 20
       start_period: 10s
+
+  sensor-community-mock:
+    image: mendhak/http-https-echo:34
+    profiles: ["dev"]
+    restart: unless-stopped
+    environment:
+      HTTP_PORT: "8080"
+      LOG_WITHOUT_NEWLINE: "true"
+      LOG_IGNORE_PATH: "/healthz"
+    ports:
+      - "${SENSOR_COMMUNITY_MOCK_PORT:-8080}:8080"
 
   migrate:
     build:

@@ -48,6 +48,11 @@ class Device(_Model):
     first_seen_at: datetime
     last_seen_at: datetime
     measurement_count: int | None = Field(default=None, ge=0)
+    sensor_community_id: int | None = None
+
+
+class DeviceUpdate(_Model):
+    sensor_community_id: int | None = None
 
 
 class DeviceList(_Model):

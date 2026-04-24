@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +22,7 @@ from app.schemas import (
     Sensors,
     Transmission,
 )
+from app.workers.sensor_community import forward as forward_to_sensor_community
 
 router = APIRouter(prefix="/api/v1/measurements", tags=["measurements"])
 
@@ -60,6 +61,7 @@ def _row_to_measurement(row: MeasurementModel) -> Measurement:
 )
 async def ingest_measurement(
     payload: MeasurementPayload,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
     _token: str = Depends(require_gateway_token),
 ) -> MeasurementAccepted:
@@ -108,6 +110,12 @@ async def ingest_measurement(
         ) from None
 
     await session.refresh(measurement)
+    await session.refresh(device)
+
+    background_tasks.add_task(
+        forward_to_sensor_community, payload, device.sensor_community_id
+    )
+
     return MeasurementAccepted(
         message_id=measurement.message_id,
         received_at=measurement.received_at,
