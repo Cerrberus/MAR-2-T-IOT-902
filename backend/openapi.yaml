@@ -531,14 +531,35 @@ components:
           maximum: 100
           description: Relative humidity (%), null if sensor unavailable
 
+    MicrophoneSensor:
+      type: object
+      required: [type, level]
+      properties:
+        type:
+          type: string
+          example: I2S
+        level:
+          type: integer
+          minimum: 0
+          description: Average amplitude from I2S buffer (raw ADC units)
+          example: 4200
+
     Sensors:
       type: object
-      required: [dust, bme280]
+      required: [bme280]
       properties:
         dust:
-          $ref: "#/components/schemas/DustSensor"
+          allOf:
+            - $ref: "#/components/schemas/DustSensor"
+          nullable: true
+          description: Absent or null when the dust sensor is not connected
         bme280:
           $ref: "#/components/schemas/Bme280Sensor"
+        microphone:
+          allOf:
+            - $ref: "#/components/schemas/MicrophoneSensor"
+          nullable: true
+          description: Absent or null when no microphone is present
 
     MeasurementPayload:
       description: Raw payload emitted by the gateway for a single measurement

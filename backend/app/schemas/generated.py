@@ -84,9 +84,15 @@ class Bme280Sensor(_Model):
     humidity: float | None = Field(default=None, ge=0, le=100)
 
 
+class MicrophoneSensor(_Model):
+    type: str
+    level: int = Field(ge=0, description="Average amplitude from I2S buffer (raw ADC units)")
+
+
 class Sensors(_Model):
-    dust: DustSensor
+    dust: DustSensor | None = None
     bme280: Bme280Sensor
+    microphone: MicrophoneSensor | None = None
 
 
 class MeasurementPayload(_Model):
