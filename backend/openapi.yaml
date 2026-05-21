@@ -1,0 +1,655 @@
+openapi: 3.0.3
+info:
+  title: Sensor Sensei API
+  description: |
+    Backend API for the Sensor Sensei outdoor air quality monitoring project.
+
+    Ingests telemetry from LoRa gateways (Heltec) forwarding data originated
+    from LilyGo T-Beam devices, stores it in PostgreSQL, and exposes endpoints
+    for dashboards and downstream forwarding (e.g. sensor.community).
+  version: 1.0.0
+  contact:
+    name: Sensor Sensei Team
+    url: https://github.com/epitech/MAR-2-T-IOT-902
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+  - url: https://api.sensor-sensei.example.org
+    description: Production (placeholder)
+
+tags:
+  - name: measurements
+    description: Ingestion and retrieval of sensor measurements
+  - name: devices
+    description: Device registry and state
+  - name: battery
+    description: Battery telemetry
+  - name: system
+    description: System / health endpoints
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/health:
+    get:
+      tags: [system]
+      summary: Healthcheck
+      description: Returns service and database health. No authentication required.
+      security: []
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "503":
+          description: Service is degraded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /api/v1/measurements:
+    post:
+      tags: [measurements]
+      summary: Ingest a measurement from a gateway
+      description: |
+        Accepts a single measurement payload forwarded by a LoRa gateway.
+        The gateway must authenticate with a bearer token.
+
+        If the `device.id` is unknown, the device is registered on the fly
+        using the `location` and `firmware_version` fields.
+      operationId: ingestMeasurement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeasurementPayload"
+            examples:
+              lilygo_t_beam:
+                summary: Typical LilyGo T-Beam payload
+                value:
+                  message_id: tbem-lora32-001-1744291920
+                  device:
+                    id: tbem-lora32-001
+                    firmware_version: 1.0.0
+                    location:
+                      latitude: 43.2965
+                      longitude: 5.3698
+                  timestamp: "2026-04-10T14:32:00Z"
+                  transmission:
+                    protocol: LoRa
+                    rssi: -87
+                    snr: 7.5
+                  battery:
+                    voltage_v: 3.85
+                    percentage: 78
+                    charging: false
+                  sensors:
+                    dust:
+                      type: GP2Y1010AU0F
+                      P1: 45.2
+                      P2: 12.8
+                    bme280:
+                      type: BMP280
+                      temperature: 22.4
+                      pressure: 1013.25
+                      humidity: null
+      responses:
+        "201":
+          description: Measurement accepted and stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementAccepted"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Duplicate measurement (message_id already seen)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+    get:
+      tags: [measurements]
+      summary: List measurements
+      description: |
+        Returns a paginated list of measurements, newest first.
+        Filterable by device and time window.
+      operationId: listMeasurements
+      parameters:
+        - $ref: "#/components/parameters/DeviceIdQuery"
+        - $ref: "#/components/parameters/FromTimestamp"
+        - $ref: "#/components/parameters/ToTimestamp"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: List of measurements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/devices:
+    get:
+      tags: [devices]
+      summary: List known devices
+      operationId: listDevices
+      responses:
+        "200":
+          description: List of devices
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/devices/{deviceId}:
+    get:
+      tags: [devices]
+      summary: Get device details
+      operationId: getDevice
+      parameters:
+        - $ref: "#/components/parameters/DeviceIdPath"
+      responses:
+        "200":
+          description: Device details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      tags: [devices]
+      summary: Update device metadata
+      description: |
+        Update mutable device metadata. Currently used to assign the
+        sensor.community ID once the external registration has been done.
+      operationId: updateDevice
+      parameters:
+        - $ref: "#/components/parameters/DeviceIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceUpdate"
+      responses:
+        "200":
+          description: Updated device
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/devices/{deviceId}/latest:
+    get:
+      tags: [devices]
+      summary: Latest measurement for a device
+      description: |
+        Returns the most recent complete measurement for a device,
+        including current battery state. Designed for dashboard headers
+        where a single call should give all current values.
+      operationId: getLatestMeasurement
+      parameters:
+        - $ref: "#/components/parameters/DeviceIdPath"
+      responses:
+        "200":
+          description: Latest measurement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Measurement"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/devices/{deviceId}/battery/history:
+    get:
+      tags: [battery]
+      summary: Battery history for a device
+      description: |
+        Returns only battery-related time-series data for a device.
+        Lightweight compared to `/measurements` since sensor payloads
+        are stripped. Useful for discharge curves and autonomy monitoring.
+      operationId: getBatteryHistory
+      parameters:
+        - $ref: "#/components/parameters/DeviceIdPath"
+        - $ref: "#/components/parameters/FromTimestamp"
+        - $ref: "#/components/parameters/ToTimestamp"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Battery history entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatteryHistory"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+      description: |
+        Opaque bearer token issued to each gateway. Sent as
+        `Authorization: Bearer <token>`.
+
+  parameters:
+    DeviceIdPath:
+      name: deviceId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[a-zA-Z0-9-_]{1,64}$"
+      example: tbem-lora32-001
+
+    DeviceIdQuery:
+      name: device_id
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Filter by device identifier
+
+    FromTimestamp:
+      name: from
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: Inclusive lower bound (ISO 8601)
+
+    ToTimestamp:
+      name: to
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: Exclusive upper bound (ISO 8601)
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        default: 100
+
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Opaque pagination cursor returned by the previous page
+
+  responses:
+    BadRequest:
+      description: Malformed request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing or invalid bearer token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ValidationError:
+      description: Payload validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: invalid_payload
+        message:
+          type: string
+          example: "Field 'sensors.dust.P1' must be >= 0"
+        details:
+          type: object
+          additionalProperties: true
+
+    HealthStatus:
+      type: object
+      required: [status, database]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        database:
+          type: string
+          enum: [ok, down]
+        version:
+          type: string
+          example: 1.0.0
+
+    Location:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+
+    DeviceInfo:
+      type: object
+      required: [id, firmware_version, location]
+      properties:
+        id:
+          type: string
+          pattern: "^[a-zA-Z0-9-_]{1,64}$"
+          example: tbem-lora32-001
+        firmware_version:
+          type: string
+          example: 1.0.0
+        location:
+          $ref: "#/components/schemas/Location"
+
+    Device:
+      type: object
+      required: [id, firmware_version, location, first_seen_at, last_seen_at]
+      properties:
+        id:
+          type: string
+          example: tbem-lora32-001
+        firmware_version:
+          type: string
+          example: 1.0.0
+        location:
+          $ref: "#/components/schemas/Location"
+        first_seen_at:
+          type: string
+          format: date-time
+        last_seen_at:
+          type: string
+          format: date-time
+        measurement_count:
+          type: integer
+          minimum: 0
+        sensor_community_id:
+          type: integer
+          nullable: true
+          description: sensor.community sensor ID (set once registered upstream)
+          example: 12345
+
+    DeviceUpdate:
+      type: object
+      description: Partial update payload for device metadata. Fields are optional.
+      properties:
+        sensor_community_id:
+          type: integer
+          nullable: true
+          description: Set to null to disable forwarding, or to an integer to enable it
+
+    DeviceList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Device"
+
+    Transmission:
+      type: object
+      required: [protocol, rssi, snr]
+      properties:
+        protocol:
+          type: string
+          enum: [LoRa, WiFi, BLE]
+        rssi:
+          type: integer
+          description: Received signal strength indicator (dBm)
+          example: -87
+        snr:
+          type: number
+          format: float
+          description: Signal-to-noise ratio (dB)
+          example: 7.5
+
+    Battery:
+      type: object
+      required: [voltage_v, percentage, charging]
+      properties:
+        voltage_v:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 5
+          example: 3.85
+        percentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 78
+        charging:
+          type: boolean
+
+    DustSensor:
+      type: object
+      required: [type, P1, P2]
+      properties:
+        type:
+          type: string
+          example: GP2Y1010AU0F
+        P1:
+          type: number
+          format: float
+          minimum: 0
+          description: PM10 particulate concentration (µg/m³)
+          example: 45.2
+        P2:
+          type: number
+          format: float
+          minimum: 0
+          description: PM2.5 particulate concentration (µg/m³)
+          example: 12.8
+
+    Bme280Sensor:
+      type: object
+      required: [type, temperature, pressure]
+      properties:
+        type:
+          type: string
+          example: BMP280
+        temperature:
+          type: number
+          format: float
+          description: Degrees Celsius
+          example: 22.4
+        pressure:
+          type: number
+          format: float
+          description: hPa
+          example: 1013.25
+        humidity:
+          type: number
+          format: float
+          nullable: true
+          minimum: 0
+          maximum: 100
+          description: Relative humidity (%), null if sensor unavailable
+
+    MicrophoneSensor:
+      type: object
+      required: [type, level]
+      properties:
+        type:
+          type: string
+          example: I2S
+        level:
+          type: integer
+          minimum: 0
+          description: Average amplitude from I2S buffer (raw ADC units)
+          example: 4200
+
+    Sensors:
+      type: object
+      required: [bme280]
+      properties:
+        dust:
+          allOf:
+            - $ref: "#/components/schemas/DustSensor"
+          nullable: true
+          description: Absent or null when the dust sensor is not connected
+        bme280:
+          $ref: "#/components/schemas/Bme280Sensor"
+        microphone:
+          allOf:
+            - $ref: "#/components/schemas/MicrophoneSensor"
+          nullable: true
+          description: Absent or null when no microphone is present
+
+    MeasurementPayload:
+      description: Raw payload emitted by the gateway for a single measurement
+      type: object
+      required:
+        - message_id
+        - device
+        - timestamp
+        - transmission
+        - battery
+        - sensors
+      properties:
+        message_id:
+          type: string
+          description: Unique per-device + per-timestamp identifier (used for idempotency)
+          example: tbem-lora32-001-1744291920
+        device:
+          $ref: "#/components/schemas/DeviceInfo"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-04-10T14:32:00Z"
+        transmission:
+          $ref: "#/components/schemas/Transmission"
+        battery:
+          $ref: "#/components/schemas/Battery"
+        sensors:
+          $ref: "#/components/schemas/Sensors"
+
+    Measurement:
+      description: Stored measurement as returned by the API
+      allOf:
+        - $ref: "#/components/schemas/MeasurementPayload"
+        - type: object
+          required: [received_at]
+          properties:
+            received_at:
+              type: string
+              format: date-time
+              description: Server-side ingestion timestamp
+
+    MeasurementAccepted:
+      type: object
+      required: [message_id, received_at]
+      properties:
+        message_id:
+          type: string
+        received_at:
+          type: string
+          format: date-time
+
+    MeasurementList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Measurement"
+        next_cursor:
+          type: string
+          nullable: true
+
+    BatteryHistoryEntry:
+      type: object
+      required: [timestamp, voltage_v, percentage, charging]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        voltage_v:
+          type: number
+          format: float
+        percentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+        charging:
+          type: boolean
+
+    BatteryHistory:
+      type: object
+      required: [device_id, items]
+      properties:
+        device_id:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BatteryHistoryEntry"
+        next_cursor:
+          type: string
+          nullable: true
