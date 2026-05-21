@@ -1,4 +1,4 @@
-"""GENERATED FILE — do not edit by hand.
+"""GENERATED FILE - do not edit by hand.
 
 Regenerate with `./scripts/generate_schemas.sh` after updating `openapi.yaml`.
 

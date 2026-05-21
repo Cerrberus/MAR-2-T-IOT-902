@@ -1,4 +1,4 @@
-# Sensor Sensei — Résumé Backend API
+# Sensor Sensei - Résumé Backend API
 
 ## Architecture générale
 
@@ -34,7 +34,7 @@ L'API a été conçue **en partant du contrat** (`openapi.yaml`) plutôt que du 
 1. On modifie `openapi.yaml` en premier
 2. On regénère les schémas Pydantic depuis le YAML (`datamodel-code-generator`)
 3. On adapte les routes FastAPI pour respecter le contrat
-4. Swagger UI sert **le fichier YAML** directement — pas ce que FastAPI génère depuis le code
+4. Swagger UI sert **le fichier YAML** directement - pas ce que FastAPI génère depuis le code
 
 **Avantage concret** : n'importe qui peut lire `openapi.yaml` et savoir exactement ce que fait l'API, sans lire le code Python. Facilite aussi l'intégration côté firmware (gateway Heltec).
 
@@ -127,7 +127,7 @@ Après chaque ingestion réussie, les valeurs sont transmises en **background** 
 Le forward est désactivé par défaut (`SENSOR_COMMUNITY_ENABLED=false`) et s'active une fois les capteurs enregistrés sur la plateforme.
 
 ### Endpoint batterie dédié
-`/battery/history` renvoie uniquement `timestamp + voltage + percentage + charging` — payload 10× plus léger que les mesures complètes, pensé pour les courbes de décharge et la prédiction d'autonomie.
+`/battery/history` renvoie uniquement `timestamp + voltage + percentage + charging` - payload 10× plus léger que les mesures complètes, pensé pour les courbes de décharge et la prédiction d'autonomie.
 
 ---
 
@@ -161,6 +161,6 @@ backend/
 ## Environnement de développement
 
 L'environnement de dev inclut :
-- Un **mock HTTP** (`mendhak/http-https-echo`) qui reçoit les pushes sensor.community et les affiche — permet de tester le forward sans compte réel
+- Un **mock HTTP** (`mendhak/http-https-echo`) qui reçoit les pushes sensor.community et les affiche - permet de tester le forward sans compte réel
 - Un **simulateur de gateway** qui génère des capteurs fictifs avec random walk réaliste (température, PM, batterie avec cycles de charge/décharge)
 - **Hot-reload** uvicorn activable via `RELOAD=true`

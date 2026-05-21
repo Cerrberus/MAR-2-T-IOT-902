@@ -1,7 +1,7 @@
 """Pydantic schemas.
 
 `generated.py` is produced by `scripts/generate_schemas.sh` from `openapi.yaml`.
-Do not edit it by hand — edit `openapi.yaml` and regenerate.
+Do not edit it by hand - edit `openapi.yaml` and regenerate.
 
 Hand-written helpers that wrap or extend the generated schemas can live
 alongside this file (e.g. `pagination.py`).

@@ -1,4 +1,4 @@
-# Sensor Sensei — Backend API
+# Sensor Sensei - Backend API
 
 FastAPI + PostgreSQL backend pour le projet de monitoring de qualité d'air.
 
@@ -102,7 +102,7 @@ curl -s "http://localhost:8000/api/v1/devices/test-001/battery/history?limit=10"
   -H "Authorization: Bearer changeme" | python3 -m json.tool
 ```
 
-> **Tip** : l'exemple pré-rempli dans Swagger UI (`/docs`) correspond exactement au payload du capteur — utilise le bouton "Try it out".
+> **Tip** : l'exemple pré-rempli dans Swagger UI (`/docs`) correspond exactement au payload du capteur - utilise le bouton "Try it out".
 
 ---
 
@@ -110,7 +110,7 @@ curl -s "http://localhost:8000/api/v1/devices/test-001/battery/history?limit=10"
 
 Quand tu auras [enregistré tes capteurs](https://devices.sensor.community/) et récupéré leurs **sensor IDs** numériques (ex. `12345`), faire en deux étapes :
 
-### Étape 1 — Associer l'ID sensor.community à chaque device
+### Étape 1 - Associer l'ID sensor.community à chaque device
 
 ```bash
 # Remplacer <device-id> par l'id du capteur (ex. tbem-lora32-001)
@@ -130,7 +130,7 @@ curl -s http://localhost:8000/api/v1/devices/<device-id> \
 # "sensor_community_id": <sensor-community-id>  ← doit apparaître
 ```
 
-### Étape 2 — Activer le forward dans `.env`
+### Étape 2 - Activer le forward dans `.env`
 
 ```bash
 # .env
@@ -154,7 +154,7 @@ INFO sensor.community push ok sensor=12345 pin=11 status=200
 > **Pin 1** = poussière (P1/P2 du GP2Y)  
 > **Pin 11** = BME280 (température, pression, humidité)
 
-Les capteurs sans `sensor_community_id` sont simplement ignorés (log DEBUG) — utile si tu ajoutes un capteur en dev sans l'avoir encore enregistré.
+Les capteurs sans `sensor_community_id` sont simplement ignorés (log DEBUG) - utile si tu ajoutes un capteur en dev sans l'avoir encore enregistré.
 
 ---
 
@@ -179,7 +179,7 @@ docker compose run --rm migrate
 
 | Méthode | Path | Auth | Description |
 |---------|------|------|-------------|
-| GET | `/api/v1/health` | — | Healthcheck (db inclus) |
+| GET | `/api/v1/health` | - | Healthcheck (db inclus) |
 | POST | `/api/v1/measurements` | token | Ingestion depuis gateway |
 | GET | `/api/v1/measurements` | token | Liste paginée (filtres : device_id, from, to) |
 | GET | `/api/v1/devices` | token | Liste des capteurs connus |

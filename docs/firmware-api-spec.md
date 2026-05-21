@@ -1,4 +1,4 @@
-# Sensor Sensei — Spec d'intégration firmware → API
+# Sensor Sensei - Spec d'intégration firmware → API
 
 Document à destination de l'équipe firmware.  
 Toute modification du contrat doit d'abord passer par l'équipe API (`openapi.yaml`).
@@ -114,7 +114,7 @@ snprintf(msgId, sizeof(msgId), "%s-%lu", DEVICE_ID, (unsigned long)(unixTimestam
 ```
 
 Avec NTP : utiliser `time(nullptr)` après sync.  
-Sans NTP : utiliser `millis()` en fallback (risque de collision après reboot — utiliser NTP dès que possible).
+Sans NTP : utiliser `millis()` en fallback (risque de collision après reboot - utiliser NTP dès que possible).
 
 ---
 
@@ -182,4 +182,4 @@ void sendMeasurement(float temp, float humidity, float pressure, int micLevel) {
 2. Les unités de sortie (µg/m³ ou valeur brute ADC ?)
 3. Le mapping vers P1 (PM10) et P2 (PM2.5)
 
-L'équipe API mettra à jour `openapi.yaml` en conséquence — ne pas envoyer `sensors.dust` avant alignement.
+L'équipe API mettra à jour `openapi.yaml` en conséquence - ne pas envoyer `sensors.dust` avant alignement.
