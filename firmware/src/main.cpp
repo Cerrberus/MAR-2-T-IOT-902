@@ -1,7 +1,108 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include <SPI.h>
+#include <RadioLib.h>
+#include <XPowersLib.h>
 #include <Adafruit_BMP280.h>
 #include <TinyGPSPlus.h>
+
+#define PROJECT_DEVICE_ID        "tbeam-001"
+#define PROJECT_FIRMWARE_VERSION "1.0.0"
+
+// =============================================================================
+// Module PMU -- AXP2101 (gestion d'alimentation T-Beam Q410)
+//
+// Gere les rails d'alimentation du SX1276 (ALDO2) et du GPS (ALDO3).
+// Doit etre initialise avant LoRa et GPS. Wire doit etre demarre au prealable.
+// =============================================================================
+
+static const uint8_t PROJECT_PMU_SDA_PIN = 21;
+static const uint8_t PROJECT_PMU_SCL_PIN = 22;
+
+static XPowersAXP2101 g_pmu;
+static bool           g_pmuReady = false;
+
+static void projectPmuSetup() {
+    if (!g_pmu.begin(Wire, AXP2101_SLAVE_ADDRESS, PROJECT_PMU_SDA_PIN, PROJECT_PMU_SCL_PIN)) {
+        Serial.println("[PMU] AXP2101 introuvable — brancher la batterie ou alimenter par USB.");
+        g_pmuReady = false;
+        return;
+    }
+    g_pmu.setALDO2Voltage(3300);
+    g_pmu.enableALDO2();   // Rail SX1276 (LoRa)
+    g_pmu.setALDO3Voltage(3300);
+    g_pmu.enableALDO3();   // Rail module GPS
+    delay(200);
+    g_pmuReady = true;
+    Serial.println("[PMU] AXP2101 initialise (ALDO2=LoRa 3.3V, ALDO3=GPS 3.3V).");
+}
+
+static float projectPmuGetBatteryVoltage() {
+    if (!g_pmuReady) return 0.0f;
+    return g_pmu.getBattVoltage() / 1000.0f;
+}
+
+static uint8_t projectPmuGetBatteryPercent() {
+    if (!g_pmuReady) return 0;
+    int pct = g_pmu.getBatteryPercent();
+    return (pct < 0) ? 0 : (uint8_t)pct;
+}
+
+static bool projectPmuIsCharging() {
+    if (!g_pmuReady) return false;
+    return g_pmu.isCharging();
+}
+
+// =============================================================================
+// Module LoRa -- SX1276 868 MHz (RadioLib)
+//
+// Brochage SPI specifique au T-Beam V1.2.
+// SF7 : bon compromis portee/debit. Puissance 10 dBm (limite legale EU).
+// Le rail ALDO2 doit etre active par le PMU avant cet init.
+// =============================================================================
+
+static const uint8_t  PROJECT_LORA_SCK_PIN  = 5;
+static const uint8_t  PROJECT_LORA_MISO_PIN = 19;
+static const uint8_t  PROJECT_LORA_MOSI_PIN = 27;
+static const uint8_t  PROJECT_LORA_NSS_PIN  = 18;
+static const uint8_t  PROJECT_LORA_RST_PIN  = 23;
+static const uint8_t  PROJECT_LORA_DIO0_PIN = 26;
+static const uint8_t  PROJECT_LORA_DIO1_PIN = 33;
+
+static const float    PROJECT_LORA_FREQ_MHZ  = 868.0f;
+static const float    PROJECT_LORA_BW_KHZ    = 125.0f;
+static const uint8_t  PROJECT_LORA_SF        = 7;
+static const uint8_t  PROJECT_LORA_CR        = 5;
+static const int8_t   PROJECT_LORA_POWER_DBM = 10;
+
+static SX1276 g_lora = new Module(PROJECT_LORA_NSS_PIN, PROJECT_LORA_DIO0_PIN,
+                                   PROJECT_LORA_RST_PIN, PROJECT_LORA_DIO1_PIN);
+static bool   g_loraReady = false;
+
+static void projectLoraSetup() {
+    SPI.begin(PROJECT_LORA_SCK_PIN, PROJECT_LORA_MISO_PIN, PROJECT_LORA_MOSI_PIN);
+
+    int state = g_lora.begin(PROJECT_LORA_FREQ_MHZ);
+    if (state != RADIOLIB_ERR_NONE) {
+        Serial.printf("[LoRa] Initialisation echouee (code %d)\n", state);
+        g_loraReady = false;
+        return;
+    }
+    g_lora.setOutputPower(PROJECT_LORA_POWER_DBM);
+    g_lora.setBandwidth(PROJECT_LORA_BW_KHZ);
+    g_lora.setSpreadingFactor(PROJECT_LORA_SF);
+    g_lora.setCodingRate(PROJECT_LORA_CR);
+    g_loraReady = true;
+    Serial.printf("[LoRa] SX1276 initialise (%.1f MHz | SF%d | BW%.0f kHz | CR4/%d | %d dBm)\n",
+                  PROJECT_LORA_FREQ_MHZ, PROJECT_LORA_SF, PROJECT_LORA_BW_KHZ,
+                  PROJECT_LORA_CR, PROJECT_LORA_POWER_DBM);
+}
+
+// Transmet un payload texte par LoRa. Retourne vrai si OK.
+static bool projectLoraSend(String payload) {
+    if (!g_loraReady) return false;
+    return g_lora.transmit(payload.c_str()) == RADIOLIB_ERR_NONE;
+}
 
 // --- Broches ---
 static const uint8_t PROJECT_DUST_AOUT_PIN = 36;  // Sortie analogique du capteur (VP / ADC1)
@@ -242,15 +343,11 @@ static void projectDustAppendJson(String &json) {
 }
 
 // =============================================================================
-// Module BMP280 — température et pression atmosphérique (I2C)
+// Module BMP280 -- temperature et pression atmospherique (I2C)
 // =============================================================================
 
-static const uint8_t  PROJECT_BMP_SDA_PIN = 21;
-static const uint8_t  PROJECT_BMP_SCL_PIN = 22;
-static const uint8_t  PROJECT_BMP_I2C_ADDR = 0x76; // SDO à GND → 0x76, SDO à VCC → 0x77
-
 static Adafruit_BMP280 g_bmp;
-static bool            g_bmpReady = false; // Faux si le capteur n'a pas répondu à l'init
+static bool            g_bmpReady = false;
 
 struct ProjectBmpReading {
   float       tempC;        // Température en °C
@@ -259,26 +356,25 @@ struct ProjectBmpReading {
   bool        ready;        // Faux si le capteur est absent ou en erreur
 };
 
-// Initialise le bus I2C et le BMP280 ; marque g_bmpReady selon le résultat
+// Initialise le BMP280. Teste 0x76 puis 0x77 car la broche SDO varie selon les modules.
+// Wire.begin() est appele dans setup() (bus partage avec AXP2101).
 static void projectBmpSetup() {
-  Wire.begin(PROJECT_BMP_SDA_PIN, PROJECT_BMP_SCL_PIN);
-
-  if (!g_bmp.begin(PROJECT_BMP_I2C_ADDR)) {
-    Serial.println("[BMP280] Capteur introuvable — verifier adresse et cablage.");
+  uint8_t addr = 0;
+  if      (g_bmp.begin(0x76)) { addr = 0x76; }
+  else if (g_bmp.begin(0x77)) { addr = 0x77; }
+  else {
+    Serial.println("[BMP280] Capteur introuvable (0x76 et 0x77) — verifier adresse et cablage.");
     g_bmpReady = false;
     return;
   }
 
-  // Réglages recommandés par Adafruit pour une utilisation en intérieur
   g_bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,
-                    Adafruit_BMP280::SAMPLING_X2,   // température
-                    Adafruit_BMP280::SAMPLING_X16,  // pression
+                    Adafruit_BMP280::SAMPLING_X2,
+                    Adafruit_BMP280::SAMPLING_X16,
                     Adafruit_BMP280::FILTER_X16,
                     Adafruit_BMP280::STANDBY_MS_500);
   g_bmpReady = true;
-
-  Serial.printf("[BMP280] Capteur initialise (SDA=%d, SCL=%d, addr=0x%02X)\n",
-                PROJECT_BMP_SDA_PIN, PROJECT_BMP_SCL_PIN, PROJECT_BMP_I2C_ADDR);
+  Serial.printf("[BMP280] Capteur initialise (addr=0x%02X)\n", addr);
 }
 
 // Retourne une lecture BMP280 ; ready=false si le capteur n'est pas disponible
@@ -353,6 +449,61 @@ static void projectGpsSetup() {
                 PROJECT_GPS_RX_PIN, PROJECT_GPS_TX_PIN, PROJECT_GPS_BAUD);
 }
 
+// =============================================================================
+// Payload LoRa -- construction du message a transmettre a la gateway
+//
+// JSON compact envoye par LoRa. La gateway Heltec le recoit et le retransmet
+// enrichi (RSSI, SNR, horodatage NTP) vers le backend HTTP.
+// Les champs optionnels sont omis si le capteur n'est pas disponible.
+// =============================================================================
+
+static String projectBuildLoraPayload(
+    ProjectGpsReading  gps,
+    ProjectBmpReading  bmp,
+    ProjectDustReading dust,
+    float                     battVolt,
+    uint8_t                   battPct,
+    bool                      battCharging,
+    uint32_t                  msgSeq)
+{
+    // message_id : device_id + uptime ms (fallback sans NTP, conforme a la spec)
+    char msgId[48];
+    snprintf(msgId, sizeof(msgId), "%s-%lu", PROJECT_DEVICE_ID, (unsigned long)millis());
+
+    String json = "{";
+    json += "\"id\":\""   + String(PROJECT_DEVICE_ID) + "\"";
+    json += ",\"fw\":\""  + String(PROJECT_FIRMWARE_VERSION) + "\"";
+    json += ",\"msg\":\"" + String(msgId) + "\"";
+    json += ",\"seq\":"   + String(msgSeq);
+
+    json += ",\"gps_ok\":" + String(gps.locationValid ? "true" : "false");
+    json += ",\"sats\":"   + String(gps.satellites);
+    if (gps.locationValid) {
+        json += ",\"lat\":"  + String(gps.lat, 6);
+        json += ",\"lng\":"  + String(gps.lng, 6);
+    }
+    if (gps.altValid) json += ",\"alt\":"  + String(gps.altM, 1);
+
+    if (bmp.ready) {
+        json += ",\"temp\":"  + String(bmp.tempC, 2);
+        json += ",\"pres\":"  + String(bmp.pressureHpa, 2);
+    }
+
+    if (dust.ready) {
+        json += ",\"pm25\":"  + String(dust.estimatedUgM3, 1);
+        json += ",\"dust\":"  + String((unsigned int)dust.dustIndexPct);
+    }
+
+    if (battVolt > 0.0f) {
+        json += ",\"batt_v\":"  + String(battVolt, 2);
+        json += ",\"batt_p\":"  + String((unsigned int)battPct);
+        json += ",\"batt_c\":"  + String(battCharging ? "true" : "false");
+    }
+
+    json += "}";
+    return json;
+}
+
 // Affiche une barre de progression ASCII sur 20 caractères : [####----------------]
 static void printBar(uint8_t pct) {
   const uint8_t width  = 20;
@@ -366,15 +517,29 @@ static void printBar(uint8_t pct) {
 
 void setup() {
   Serial.begin(115200);
+
+  // Bus I2C partage entre AXP2101 et BMP280
+  Wire.begin(PROJECT_PMU_SDA_PIN, PROJECT_PMU_SCL_PIN);
+
+  // PMU en premier : active les rails d'alimentation LoRa (ALDO2) et GPS (ALDO3)
+  projectPmuSetup();
+
   projectDustSetup();
   projectBmpSetup();
   projectGpsSetup();
+  projectLoraSetup();
 }
 
 void loop() {
-  const ProjectDustReading dust = projectDustAcquireReading();
-  const ProjectBmpReading  bmp  = projectBmpAcquireReading();
-  const ProjectGpsReading  gps  = projectGpsAcquireReading();
+  static uint32_t s_msgSeq = 0;
+  s_msgSeq++;
+
+  const ProjectDustReading dust  = projectDustAcquireReading();
+  const ProjectBmpReading  bmp   = projectBmpAcquireReading();
+  const ProjectGpsReading  gps   = projectGpsAcquireReading();
+  const float              battV = projectPmuGetBatteryVoltage();
+  const uint8_t            battP = projectPmuGetBatteryPercent();
+  const bool               battC = projectPmuIsCharging();
   uint32_t ts = millis();
 
   Serial.println("========================================");
@@ -423,4 +588,24 @@ void loop() {
   }
 
   Serial.println();
+
+  // --- Batterie ---
+  Serial.println("  [Batterie]");
+  if (battV > 0.0f)
+    Serial.printf("  %.2f V  %u%%  %s\n", battV, battP, battC ? "en charge" : "decharge");
+  else
+    Serial.println("  (PMU absent — alimentation USB)");
+
+  Serial.println();
+
+  // --- Envoi LoRa ---
+  String payload = projectBuildLoraPayload(gps, bmp, dust, battV, battP, battC, s_msgSeq);
+  bool   sent    = projectLoraSend(payload);
+
+  Serial.println("  [LoRa]");
+  Serial.printf("  Payload (%u oct) : %s\n", (unsigned int)payload.length(), payload.c_str());
+  Serial.printf("  Envoi           : %s\n",  sent ? "OK" : "ECHEC");
+  Serial.println();
+
+  delay(4000);
 }
