@@ -160,7 +160,39 @@ pio device monitor -e heltec_gateway
 
 ---
 
-## 7. Vérifier la chaîne complète
+## 7. Démarrer le frontend
+
+```bash
+cd frontend
+récupérer .env dans notion
+```
+
+Dans `.env`, vérifier que le token correspond à celui du backend :
+
+```
+VITE_API_TOKEN=dev-token
+```
+
+Installer les dépendances et lancer :
+
+```bash
+npm install
+npm run dev
+```
+
+Ouvrir : **http://localhost:5173**
+
+Le dashboard affiche :
+- Statut de l'API en temps réel
+- Carte interactive avec la position de chaque capteur
+- Grille des devices avec les dernières mesures (PM2.5, température, batterie)
+- Page détail par capteur : graphiques température / PM2.5 / batterie, infos LoRa
+
+> Le frontend se connecte automatiquement à `http://localhost:8000` — le backend doit tourner en même temps.
+
+---
+
+## 8. Vérifier la chaîne complète
 
 Le monitor Heltec doit afficher :
 
@@ -178,10 +210,9 @@ Le monitor Heltec doit afficher :
        OK envoyes : 1 / 1
 ```
 
-Vérifier dans le navigateur que les données arrivent :  
-**http://localhost:8000/docs** → `GET /api/v1/devices` → **Execute**
-
-Le device `tbeam-001` doit apparaître avec `measurement_count` qui s'incrémente.
+Vérifier dans le navigateur que les données arrivent :
+- **http://localhost:5173** → le device `tbeam-001` apparaît sur la carte et dans la grille
+- **http://localhost:8000/docs** → `GET /api/v1/devices` → `measurement_count` s'incrémente
 
 ---
 
