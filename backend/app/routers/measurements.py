@@ -47,8 +47,8 @@ def _row_to_measurement(row: MeasurementModel) -> Measurement:
             charging=row.battery_charging,
         ),
         sensors=Sensors(
-            dust=DustSensor(**row.sensors["dust"]),
-            bme280=Bme280Sensor(**row.sensors["bme280"]),
+            dust=DustSensor(**row.sensors["dust"]) if row.sensors.get("dust") else None,
+            bme280=Bme280Sensor(**row.sensors["bme280"]) if row.sensors.get("bme280") else None,
         ),
         received_at=row.received_at,
     )
