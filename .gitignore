@@ -1,0 +1,3 @@
+firmware/platformio.local.ini
+firmware/.pio/
+backend/.env
