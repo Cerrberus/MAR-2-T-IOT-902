@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Flash T-Beam (firmware principal)",
+      "label": "Flash T-Beam",
       "type": "shell",
       "command": "pio run -e tbeam_main --target upload",
       "options": {
@@ -13,7 +13,7 @@
       "presentation": { "reveal": "always", "panel": "dedicated" }
     },
     {
-      "label": "Monitor T-Beam (firmware principal)",
+      "label": "Monitor T-Beam",
       "type": "shell",
       "command": "pio device monitor -e tbeam_main",
       "options": {
@@ -24,9 +24,9 @@
       "presentation": { "reveal": "always", "panel": "dedicated" }
     },
     {
-      "label": "Flash Heltec (récepteur)",
+      "label": "Flash Heltec (gateway)",
       "type": "shell",
-      "command": "pio run -e lora_heltec_receiver_test --target upload",
+      "command": "pio run -e heltec_gateway --target upload",
       "options": {
         "cwd": "${workspaceFolder}",
         "env": { "PATH": "${env:USERPROFILE}\\.platformio\\penv\\Scripts;${env:PATH}" }
@@ -35,31 +35,9 @@
       "presentation": { "reveal": "always", "panel": "dedicated" }
     },
     {
-      "label": "Monitor Heltec (récepteur)",
+      "label": "Monitor Heltec (gateway)",
       "type": "shell",
-      "command": "pio device monitor -e lora_heltec_receiver_test",
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": { "PATH": "${env:USERPROFILE}\\.platformio\\penv\\Scripts;${env:PATH}" }
-      },
-      "group": "test",
-      "presentation": { "reveal": "always", "panel": "dedicated" }
-    },
-    {
-      "label": "Flash T-Beam (test LoRa émetteur)",
-      "type": "shell",
-      "command": "pio run -e lora_tbeam_sender_test --target upload",
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": { "PATH": "${env:USERPROFILE}\\.platformio\\penv\\Scripts;${env:PATH}" }
-      },
-      "group": "build",
-      "presentation": { "reveal": "always", "panel": "dedicated" }
-    },
-    {
-      "label": "Monitor T-Beam (test LoRa émetteur)",
-      "type": "shell",
-      "command": "pio device monitor -e lora_tbeam_sender_test",
+      "command": "pio device monitor -e heltec_gateway",
       "options": {
         "cwd": "${workspaceFolder}",
         "env": { "PATH": "${env:USERPROFILE}\\.platformio\\penv\\Scripts;${env:PATH}" }
