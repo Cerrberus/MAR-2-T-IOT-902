@@ -546,7 +546,6 @@ components:
 
     Sensors:
       type: object
-      required: [bme280]
       properties:
         dust:
           allOf:
@@ -554,7 +553,10 @@ components:
           nullable: true
           description: Absent or null when the dust sensor is not connected
         bme280:
-          $ref: "#/components/schemas/Bme280Sensor"
+          allOf:
+            - $ref: "#/components/schemas/Bme280Sensor"
+          nullable: true
+          description: Absent or null when the BMP280/BME280 is not connected
         microphone:
           allOf:
             - $ref: "#/components/schemas/MicrophoneSensor"
