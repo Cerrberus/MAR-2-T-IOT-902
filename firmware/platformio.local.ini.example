@@ -1,0 +1,28 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Sur un nouveau PC — setup en une seule fois :
+#
+#   cp firmware/platformio.local.ini.example firmware/platformio.local.ini
+#
+# Puis éditer platformio.local.ini et remplacer les valeurs ci-dessous.
+# Ce fichier est git-ignoré : les credentials ne sont jamais commités.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─── Ports COM (adapter selon ton PC) ────────────────────────────────────────
+[env:lora_tbeam_sender_test]
+upload_port = COM5
+monitor_port = COM5
+
+[env:lora_heltec_receiver_test]
+upload_port = COM8
+monitor_port = COM8
+
+# ─── Gateway : ports COM + credentials WiFi/API ──────────────────────────────
+[env:heltec_gateway]
+upload_port = COM8
+monitor_port = COM8
+build_flags =
+    -D GATEWAY_WIFI_SSID=\"nom\"
+    -D GATEWAY_WIFI_PASSWORD=\"mdp\"
+# Note: si le mot de passe contient %, l'écrire %% (ex: "pass%word" → "pass%%word")
+    -D GATEWAY_API_URL=\"ipadress:8000/api/v1/measurements\"
+    -D GATEWAY_API_TOKEN=\"dev-token\"
