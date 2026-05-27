@@ -28,11 +28,12 @@ export default function Dashboard() {
   if (error) return <div className="state-msg error">⚠ Erreur : {error}</div>
 
   const withLatest = entries.filter((e) => e.latest)
+  const tempEntries = withLatest.filter((e) => e.latest.sensors.bme280)
   const avgTemp =
-    withLatest.length > 0
+    tempEntries.length > 0
       ? (
-          withLatest.reduce((s, e) => s + (e.latest.sensors.bme280?.temperature ?? 0), 0) /
-          withLatest.length
+          tempEntries.reduce((s, e) => s + e.latest.sensors.bme280.temperature, 0) /
+          tempEntries.length
         ).toFixed(1)
       : null
   const dustEntries = withLatest.filter((e) => e.latest.sensors.dust)
