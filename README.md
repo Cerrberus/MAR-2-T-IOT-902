@@ -1,231 +1,235 @@
-# Sensor Sensei — Firmware MAR-2
 
-> Epitech T-IOT-902 — Nœud capteur environnemental sur ESP32 TTGO T-Beam.  
-> Compatible avec le projet [sensor.community](https://sensor.community), étendu avec une communication longue portée via LoRa.
+## Prérequis logiciels
 
----
-
-## Contexte
-
-Le projet [sensor.community](https://sensor.community) cartographie la qualité de l'air à l'échelle mondiale grâce à des capteurs construits par des citoyens. Sa conception originale repose sur le WiFi, ce qui limite son déploiement en zone rurale et implique une consommation énergétique élevée.
-
-Ce firmware propose une architecture alternative :
-
-```
-[Nœud capteur — batterie]
-         |
-    LoRa (portée km, très faible consommation)
-         |
-[Passerelle LoRa ↔ WiFi]
-         |
-        HTTP
-         |
-[Serveur sensor.community]
-```
-
-Le nœud capteur est autonome (alimenté par batterie). Il mesure les données environnementales et les transmet via LoRa à une passerelle dédiée. La passerelle relaie ensuite les données vers l'API sensor.community via WiFi. Chaque capteur n'a plus besoin de sa propre connexion WiFi, ce qui réduit drastiquement la consommation et étend la portée opérationnelle.
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (avec Docker Compose)
+- [PlatformIO](https://platformio.org/) (extension VSCode recommandée)
+- [Git](https://git-scm.com/)
 
 ---
 
-## Matériel
-
-| Composant | Rôle |
-|---|---|
-| **TTGO T-Beam** (ESP32) | Microcontrôleur principal + GPS + LoRa intégrés |
-| **Sharp GP2Y1010AU0F** | Capteur optique de poussière — estimation PM2.5 |
-| **Bosch BMP280** | Température, pression atmosphérique, altitude |
-| **u-blox NEO-6M / M8N** | GPS — position, vitesse, altitude |
-
----
-
-## Câblage
-
-### Capteur de poussière (Sharp GP2Y1010AU0F)
-
-| Signal | GPIO ESP32 | Remarques |
-|---|---|---|
-| AOUT (sortie analogique) | 36 (VP / ADC1) | ADC 12 bits, atténuation 0 dB (0–1,1 V) |
-| ILED (commande LED IR) | 13 | Actif HIGH — impulsion de 280 µs par échantillon |
-
-La séquence de mesure respecte le timing de la datasheet Sharp GP2Y1010AU0F :
-
-```
-LED ON ──── 280 µs ──── échantillon ──── 40 µs ──── LED OFF ──── 9680 µs ──── (répéter)
-```
-
-### BMP280 (I2C)
-
-| Signal | GPIO ESP32 |
-|---|---|
-| SDA | 21 |
-| SCL | 22 |
-| Adresse I2C | `0x76` (SDO → GND) ou `0x77` (SDO → VCC) |
-
-### GPS (UART1)
-
-| Signal | GPIO ESP32 |
-|---|---|
-| RX (ESP32 reçoit les trames NMEA) | 34 |
-| TX (ESP32 envoie des commandes) | 12 |
-| Débit | 9600 baud |
-
----
-
-## Compilation et flash
-
-Ce projet utilise [PlatformIO](https://platformio.org/).
+## 1. Cloner le projet
 
 ```bash
-# Installer PlatformIO CLI
-pip install platformio
+git clone <url-du-repo>
+cd MAR-2-T-IOT-902
+```
 
-# Compiler
+---
+
+## 2. Démarrer le backend
+
+```bash
+cd backend
+récupérer le .env dans notion
+```
+
+Le fichier `.env` est prêt à l'emploi. Vérifier que le token est cohérent avec le firmware (voir étape 4) :
+
+```
+GATEWAY_TOKENS=dev-token
+```
+
+Démarrer l'API et la base de données :
+
+```bash
+docker compose up --build -d
+```
+
+Appliquer les migrations (créer les tables) :
+
+```bash
+docker compose run --rm migrate
+```
+
+Vérifier que l'API répond :
+
+```bash
+curl http://localhost:8000/api/v1/health
+# attendu : {"status":"ok","database":"ok","version":"1.0.0"}
+```
+
+---
+
+## 3. Tester l'API dans le navigateur
+
+Ouvrir : **http://localhost:8000/docs**
+
+### Authentification
+
+Cliquer sur **Authorize** (cadenas en haut à droite) → entrer `dev-token` → **Authorize**.
+
+### Tester l'ingestion (POST)
+
+1. Cliquer sur `POST /api/v1/measurements` → **Try it out** → **Execute**
+2. Résultat attendu : **201** — mesure acceptée et stockée
+
+### Vérifier que le device est créé
+
+1. Cliquer sur `GET /api/v1/devices` → **Try it out** → **Execute**
+2. Résultat attendu : **200** — le device `tbem-lora32-001` apparaît dans la liste
+
+### Tester le rejet de doublon
+
+1. Cliquer à nouveau sur **Execute** (même `message_id`)
+2. Résultat attendu : **409** — doublon rejeté
+
+### Tester l'authentification
+
+1. Cliquer sur **Authorize** → changer le token par `mauvais-token`
+2. Cliquer sur **Execute**
+3. Résultat attendu : **401** — accès refusé
+
+---
+
+## 4. Configurer le firmware
+
+```bash
 cd firmware
-pio run
-
-# Flasher
-pio run --target upload
-
-# Ouvrir le moniteur série (115200 baud)
-pio device monitor
+récupérer le fichier platformio.local.ini dans notion
 ```
 
-La carte cible est `ttgo-t-beam`. Les dépendances sont résolues automatiquement via `platformio.ini` :
+Éditer `platformio.local.ini` et changer les valeurs build_flags (nom wifi, mot de passe, adress ip) :
 
-```ini
-lib_deps =
-    adafruit/Adafruit BMP280 Library @ ^2.6.8
-    adafruit/Adafruit Unified Sensor @ ^1.1.14
-    mikalhart/TinyGPSPlus @ ^1.0.3
+
+
+> Pour trouver les ports COM :
+> ```powershell
+> Get-WMIObject Win32_SerialPort | Select-Object Name, DeviceID, Description
+> ```
+
+> Pour trouver l'IP de ton PC :
+> ```powershell
+> ipconfig
+> ```
+> Utiliser l'adresse IPv4 du réseau WiFi partagé (ex: `192.168.1.59`).
+
+> Le Heltec (ESP32) ne supporte que le **WiFi 2.4 GHz**.  
+> Si tu utilises un hotspot téléphone, forcer la bande 2.4 GHz dans les paramètres.
+
+---
+
+## 5. Flasher le T-Beam
+
+Brancher le T-Beam sur USB.
+
+Depuis VSCode : **Ctrl+Shift+P** → `Tasks: Run Task` → **Flash T-Beam**
+
+Ou en terminal :
+
+```bash
+cd firmware
+pio run -e tbeam_main --target upload
+```
+
+Ouvrir le moniteur série pour vérifier :
+
+```bash
+pio device monitor -e tbeam_main
+# ou dans VSCode : Tasks > Monitor T-Beam
+```
+
+Sortie attendue :
+
+```
+[LoRa]
+Payload (108 oct) : {"id":"tbeam-001","fw":"1.0.0","msg":"tbeam-001-12345","seq":5,...}
+Envoi           : OK
 ```
 
 ---
 
-## Sortie moniteur série
+## 6. Flasher le Heltec (gateway)
 
-Chaque cycle de mesure affiche un rapport formaté à 115200 baud :
+Brancher le Heltec sur USB.  
+Fermer le monitor série du Heltec s'il est ouvert (le port COM ne peut pas être utilisé par deux processus en même temps).
 
+Depuis VSCode : **Ctrl+Shift+P** → `Tasks: Run Task` → **Flash Heltec (gateway)**
+
+Ou en terminal :
+
+```bash
+pio run -e heltec_gateway --target upload
 ```
-========================================
-  t = 12543 ms
-========================================
-  [GPS]
-  Satellites : 7   HDOP: 0.9
-  Position   : 48.858844, 2.294351
-  Altitude   : 35.0 m
-  Vitesse    : 0.0 km/h
 
-  [BMP280]
-  Temp     : 22.34 degC
-  Pression : 1013.25 hPa
-  Altitude : 34.8 m
+Ouvrir le monitor :
 
-  [Poussiere]  etat: pret
-  OFF raw  :   412.00 ADC
-  ON  raw  :   418.75 ADC
-  Delta    :    +6.75 ADC  (base: 6.10)
-  Relatif  :    +0.65 ADC
-
-  Niveau   :   8%  faible  [##------------------]
-  PM2.5 ~  : 40.0 ug/m3
+```bash
+pio device monitor -e heltec_gateway
+# ou dans VSCode : Tasks > Monitor Heltec (gateway)
 ```
 
 ---
 
-## Format JSON
+## 7. Vérifier la chaîne complète
 
-La fonction `projectDustAppendJson()` sérialise les données du capteur dans un fragment JSON destiné à être intégré dans la charge utile envoyée à sensor.community :
+Le monitor Heltec doit afficher :
 
-```json
-{
-  "dust_ready": true,
-  "dust_state": "pret",
-  "dust_off_raw": 412.00,
-  "dust_on_raw": 418.75,
-  "dust_delta": 6.75,
-  "dust_base": 6.10,
-  "dust_relative": 0.65,
-  "dust_level_pct": 8,
-  "dust_label": "faible",
-  "dust_pm25_estimated_ug_m3": 40.0
-}
+```
+[Gateway] Heltec WiFi LoRa 32 V3 — demarrage
+[WiFi] Connexion a NomDeTonWiFi..........
+[WiFi] Connecte — IP : 192.168.x.x
+[NTP] Heure synchronisee : 2026-XX-XXTXX:XX:XXZ
+[LoRa] SX1262 pret (868.0 MHz | SF7 | BW125 kHz | CR4/5)
+[Gateway] En attente de paquets LoRa du T-Beam...
+
+[LoRa] #1 recu | RSSI: -15.0 dBm | SNR: 12.5 dB
+       {"id":"tbeam-001","fw":"1.0.0","msg":"tbeam-001-39838",...}
+[API] OK (#1) tbeam-001-39838
+       OK envoyes : 1 / 1
 ```
 
-### États du capteur de poussière
+Vérifier dans le navigateur que les données arrivent :  
+**http://localhost:8000/docs** → `GET /api/v1/devices` → **Execute**
 
-| État | Signification |
+Le device `tbeam-001` doit apparaître avec `measurement_count` qui s'incrémente.
+
+---
+
+## Valeurs RSSI/SNR de référence
+
+| RSSI | Interprétation |
 |---|---|
-| `aucun_signal` | Aucun signal IR détecté — vérifier le câblage |
-| `stabilisation` | En attente de lectures valides consécutives |
-| `calibration` | Construction de la baseline ambiante (8 premières mesures) |
-| `pret` | Calibré et opérationnel — données exploitables |
+| -10 à -40 dBm | Excellent (cartes côte à côte) |
+| -40 à -80 dBm | Bon (quelques dizaines de mètres) |
+| -80 à -100 dBm | Correct (centaines de mètres) |
+| < -110 dBm | Limite — risque de perte de paquets |
 
-### Niveaux de qualité PM2.5
-
-| Libellé | Indice | PM2.5 estimé |
-|---|---|---|
-| `silence` | 0–9 % | 0–45 µg/m³ |
-| `faible` | 10–34 % | 45–170 µg/m³ |
-| `moyen` | 35–64 % | 170–320 µg/m³ |
-| `fort` | 65–89 % | 320–445 µg/m³ |
-| `tres fort` | 90–100 % | 445–500 µg/m³ |
-
-> **Note :** les valeurs PM2.5 sont estimées à partir d'un delta ADC relatif, calibré sur la baseline ambiante locale. Il s'agit de valeurs indicatives, non de mesures de laboratoire.
+SNR > 10 dB = excellent. SNR < 0 dB = signal bruité mais LoRa peut encore décoder.
 
 ---
 
-## Algorithme d'acquisition — capteur de poussière
+## Dépannage
 
-Le module poussière applique plusieurs couches de réduction du bruit :
-
-1. **Moyenne courte** — 4 lectures ADC consécutives sont moyennées par échantillon pour réduire le bruit électronique.
-2. **Paires OFF/ON** — 48 paires LED éteinte / LED allumée par cycle ; la soustraction OFF/ON annule la dérive de lumière ambiante.
-3. **Fenêtre glissante** — les 10 dernières valeurs brutes OFF/ON sont conservées dans un buffer circulaire ; leur moyenne constitue la valeur de travail.
-4. **Calibration de baseline** — les 8 premières mesures valides construisent une baseline ambiante par moyenne incrémentale. Delta relatif = delta mesuré − baseline (plancher à 0).
-5. **Lissage d'affichage** — la montée est bridée (+1,0 ADC/cycle max) ; la descente suit une moyenne exponentielle (α = 0,75).
-
----
-
-## Principes de conception
-
-Ce firmware respecte les principes **S.O.L.I.D.** exigés par T-IOT-902 :
-
-- **Responsabilité unique** — chaque capteur possède ses propres fonctions `setup`, `acquireReading` et `appendJson` isolées. Aucun état partagé entre modules.
-- **Ouvert/fermé** — ajouter un nouveau capteur ne nécessite qu'un nouveau bloc auto-contenu ; `setup()` et `loop()` s'étendent par composition, sans modification des modules existants.
-- **Substitution de Liskov** — chaque struct `*Reading` expose un champ `ready` pour que les appelants gèrent uniformément l'absence de matériel.
-- **Ségrégation des interfaces** — les modules n'exposent que les trois fonctions nécessaires (`setup`, `acquire`, `appendJson`) ; l'état interne et les helpers sont `static`.
-- **Inversion des dépendances** — les numéros de broches et les constantes de timing sont déclarés en `static const` en tête de chaque module, jamais en dur dans la logique.
-
-### Énergie
-
-Un projet de surveillance environnementale doit maîtriser sa propre empreinte :
-
-- Le radio LoRa remplace le WiFi sur le nœud capteur — consommation en émission inférieure de plusieurs ordres de grandeur.
-- Le deep sleep entre les cycles de mesure sera ajouté pour maximiser l'autonomie sur batterie.
-- L'atténuation ADC est réglée à `ADC_0db` (plage 0–1,1 V) pour maximiser la résolution sans étage d'amplification inutile.
+| Symptôme | Solution |
+|---|---|
+| `GET /health` échoue | `docker compose logs db` — postgres démarré ? migrations faites ? |
+| API retourne 401 | `GATEWAY_TOKENS` dans `.env` ≠ `GATEWAY_API_TOKEN` dans `platformio.local.ini` |
+| Heltec ne se connecte pas au WiFi | Vérifier SSID/mdp, forcer 2.4 GHz sur le hotspot |
+| Heltec connecté WiFi mais API 422 | Le capteur de poussière calibre au démarrage (4-5 cycles) — normal |
+| `Could not open COMx` | Fermer le monitor série avant de flasher |
+| `% must be followed by %` | Le mdp WiFi contient `%` — écrire `%%` dans `platformio.local.ini` |
+| LoRa — aucun paquet reçu | Vérifier que le T-Beam est sous tension et que les deux cartes utilisent 868 MHz |
 
 ---
 
-## Checklist de livraison (T-IOT-902)
+## Câblage des capteurs (T-Beam)
 
-- [x] Listing des fonctionnalités du firmware existant (ce document)
-- [x] Nœud capteur autonome — mesure et transmet via LoRa
-- [ ] Passerelle — relaie les paquets LoRa vers sensor.community via WiFi
-- [x] Nouveau firmware conservant la compatibilité capteurs (BMP280, GPS, poussière)
-- [ ] Passe d'optimisation énergétique / deep sleep
-- [x] Documentation firmware
-- [ ] Visualisation des données
 
----
+```bash
+# Logs API en direct
+docker compose logs -f api
 
-## Structure du projet
+# Relancer l'API après une modification
+docker compose up --build -d
 
-```
-MAR-2-T-IOT-902/
-└── firmware/
-    ├── platformio.ini       # Configuration PlatformIO — carte : ttgo-t-beam
-    └── src/
-        └── main.cpp         # Tous les modules capteurs + setup/loop
+# Appliquer les migrations
+docker compose run --rm migrate
+
+# Réinitialiser la base (supprime toutes les données)
+docker compose down -v && docker compose up -d && docker compose run --rm migrate
+
+# Lancer les tests automatisés
+docker compose exec api pytest -v
 ```
 
 ---
