@@ -19,6 +19,7 @@ from app.schemas import (
     MeasurementAccepted,
     MeasurementList,
     MeasurementPayload,
+    MicrophoneSensor,
     Sensors,
     Transmission,
 )
@@ -47,8 +48,9 @@ def _row_to_measurement(row: MeasurementModel) -> Measurement:
             charging=row.battery_charging,
         ),
         sensors=Sensors(
-            dust=DustSensor(**row.sensors["dust"]),
+            dust=DustSensor(**row.sensors["dust"]) if row.sensors.get("dust") else None,
             bme280=Bme280Sensor(**row.sensors["bme280"]),
+            microphone=MicrophoneSensor(**row.sensors["microphone"]) if row.sensors.get("microphone") else None,
         ),
         received_at=row.received_at,
     )
