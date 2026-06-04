@@ -488,7 +488,7 @@ components:
 
     DustSensor:
       type: object
-      required: [type, P1, P2]
+      required: [type, P2]
       properties:
         type:
           type: string
@@ -497,7 +497,8 @@ components:
           type: number
           format: float
           minimum: 0
-          description: PM10 particulate concentration (µg/m³)
+          nullable: true
+          description: PM10 particulate concentration (µg/m³), null if the sensor does not measure PM10
           example: 45.2
         P2:
           type: number
