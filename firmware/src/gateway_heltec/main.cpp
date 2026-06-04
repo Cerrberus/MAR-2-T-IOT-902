@@ -182,8 +182,8 @@ static void projectApiPost(const String &loraJson, float rssi, float snr) {
 
     if (hasDust) {
         payload["sensors"]["dust"]["type"] = "GP2Y1010AU0F";
-        payload["sensors"]["dust"]["P1"]   = pm25;  // estimation PM10
-        payload["sensors"]["dust"]["P2"]   = pm25;  // estimation PM2.5
+        payload["sensors"]["dust"]["P1"]   = nullptr;  // GP2Y1010AU0F ne mesure pas le PM10
+        payload["sensors"]["dust"]["P2"]   = pm25;
     }
     if (hasBmp) {
         payload["sensors"]["bme280"]["type"]        = "BMP280";
