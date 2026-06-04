@@ -8,6 +8,7 @@ export default function Header() {
       </Link>
       <nav>
         <Link to="/">Tableau de bord</Link>
+        <Link to="/community">Sensor.Community</Link>
       </nav>
     </header>
   )

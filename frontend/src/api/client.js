@@ -49,3 +49,24 @@ export function getMeasurements(params = {}) {
   if (params.cursor) query.set('cursor', params.cursor)
   return request(`/api/v1/measurements?${query}`, { headers: authHeaders() })
 }
+
+export function updateDevice(id, body) {
+  return request(`/api/v1/devices/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  })
+}
+
+// TODO(backend): endpoint dédié pour pousser à la demande vers sensor.community
+// Côté serveur, le forward est aujourd'hui automatique dans
+// app/routers/measurements.py (BackgroundTask après chaque ingest).
+// Cette fonction est un stub destiné à brancher un futur endpoint
+// POST /api/v1/sensor-community/push qui prendrait { device_ids, pins }.
+export function pushToSensorCommunity({ device_ids, pins }) {
+  return request('/api/v1/sensor-community/push', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ device_ids, pins }),
+  })
+}

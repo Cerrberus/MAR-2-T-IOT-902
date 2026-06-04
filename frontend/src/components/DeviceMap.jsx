@@ -22,10 +22,14 @@ function createPulseIcon(color) {
 }
 
 export default function DeviceMap({ entries }) {
-  if (!entries || entries.length === 0) return null
+  const located = (entries ?? []).filter((e) => {
+    const loc = e.latest?.device?.location ?? e.device.location
+    return loc && (loc.latitude !== 0 || loc.longitude !== 0)
+  })
+  if (located.length === 0) return null
 
-  const lats = entries.map((e) => e.device.location.latitude)
-  const lngs = entries.map((e) => e.device.location.longitude)
+  const lats = located.map((e) => (e.latest?.device?.location ?? e.device.location).latitude)
+  const lngs = located.map((e) => (e.latest?.device?.location ?? e.device.location).longitude)
   const center = [
     lats.reduce((a, b) => a + b, 0) / lats.length,
     lngs.reduce((a, b) => a + b, 0) / lngs.length,
@@ -38,19 +42,20 @@ export default function DeviceMap({ entries }) {
           attribution='&copy; <a href="https://carto.com/">CARTO</a>'
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
-        {entries.map(({ device, latest }) => {
+        {located.map(({ device, latest }) => {
+          const loc = latest?.device?.location ?? device.location
           const pm25 = latest?.sensors?.dust?.P2
           const temp = latest?.sensors?.bme280?.temperature
           const bat = latest?.battery?.percentage
           return (
             <Marker
               key={device.id}
-              position={[device.location.latitude, device.location.longitude]}
+              position={[loc.latitude, loc.longitude]}
               icon={createPulseIcon(pmColor(pm25))}
             >
               <Popup>
                 <div className="map-popup">
-                  <div className="map-popup-id">{device.id}</div>
+                  <div className="map-popup-id">{latest?.device?.id ?? device.id}</div>
                   {temp != null && <div>🌡️ {temp.toFixed(1)} °C</div>}
                   {pm25 != null && <div>💨 PM2.5 : {pm25.toFixed(1)} µg/m³</div>}
                   {bat != null && <div>🔋 {bat} %</div>}

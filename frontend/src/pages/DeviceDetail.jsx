@@ -77,7 +77,7 @@ export default function DeviceDetail() {
   return (
     <div className="container">
       <Link to="/" className="back-link">← Retour</Link>
-      <h1 className="page-title gradient-text">{device.id}</h1>
+      <h1 className="page-title gradient-text">{latest?.device?.id ?? device.id}</h1>
 
       {/* ── Métriques clés ── */}
       <div className="metric-row">
