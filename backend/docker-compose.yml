@@ -68,7 +68,7 @@ services:
     profiles: ["tools"]
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sensei}:${POSTGRES_PASSWORD:-sensei}@db:5432/${POSTGRES_DB:-sensei}
-    command: ["alembic", "upgrade", "head"]
+    command: ["sh", "-c", "alembic upgrade head && python scripts/seed.py"]
     depends_on:
       db:
         condition: service_healthy
