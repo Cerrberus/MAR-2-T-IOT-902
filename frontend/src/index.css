@@ -576,6 +576,290 @@ body::before {
 }
 .data-table tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
 
+/* ── Dashboard topbar ────────────────────────── */
+.dashboard-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+.dashboard-topbar .health-banner { margin-bottom: 0; }
+
+/* ── Live badge ──────────────────────────────── */
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: blink 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.loader-sm {
+  width: 13px;
+  height: 13px;
+  border-width: 2px;
+  flex-shrink: 0;
+}
+
+/* ── Stat card extras ────────────────────────── */
+.stat-offline {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.stat-warning {
+  font-size: 0.7rem;
+  color: var(--orange);
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+/* ── Offline device card ─────────────────────── */
+.device-card.offline {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.1);
+  opacity: 0.75;
+}
+.device-card.offline:hover {
+  border-color: rgba(255, 109, 0, 0.35);
+  opacity: 1;
+}
+.offline-badge {
+  background: rgba(255, 109, 0, 0.1);
+  color: var(--orange);
+  border: 1px solid rgba(255, 109, 0, 0.25);
+}
+.stale-time { color: var(--orange); }
+
+/* ── Offline banner (device detail) ─────────── */
+.offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: rgba(255, 109, 0, 0.08);
+  color: var(--orange);
+  border: 1px solid rgba(255, 109, 0, 0.25);
+  margin-bottom: 1.5rem;
+}
+
+/* ── Map offline dot ─────────────────────────── */
+.offline-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #3a4155;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+/* ── Map legend ──────────────────────────────── */
+.map-legend {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 0.85rem;
+  border-top: 1px solid var(--glass-border);
+  background: rgba(7, 11, 24, 0.7);
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.legend-online { color: var(--green); }
+.legend-offline { color: var(--muted); }
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.legend-dot-offline { background: #3a4155; border: 1px solid rgba(255,255,255,0.2); }
+
+/* ── Map popup extras ────────────────────────── */
+.map-popup-offline-tag {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--orange);
+  background: rgba(255, 109, 0, 0.1);
+  border: 1px solid rgba(255, 109, 0, 0.25);
+  border-radius: 4px;
+  padding: 1px 5px;
+  vertical-align: middle;
+  font-family: sans-serif;
+}
+.map-popup-nodata {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.map-popup-lastseen { font-size: 11px; }
+
+/* ── Freshness dot ───────────────────────────── */
+.device-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.freshness-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.fresh-live   { background: var(--green); box-shadow: 0 0 6px var(--green); animation: blink 1.5s ease-in-out infinite; }
+.fresh-recent { background: var(--green); }
+.fresh-stale  { background: var(--yellow); }
+.fresh-old    { background: var(--orange); }
+
+/* ── PM2.5 bar (bottom of device card) ───────── */
+.pm-bar-wrap {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0 0 var(--radius) var(--radius);
+  overflow: hidden;
+  margin: 0.5rem -1.25rem -1.25rem;
+}
+.pm-bar {
+  height: 100%;
+  border-radius: 0;
+  transition: width 0.6s ease;
+}
+.pm-bar.pm-good     { background: var(--green); }
+.pm-bar.pm-moderate { background: var(--yellow); }
+.pm-bar.pm-unhealthy { background: var(--orange); }
+.pm-bar.pm-hazardous { background: var(--red); }
+
+/* ── Sparkline inside card ───────────────────── */
+.card-sparkline {
+  margin: 0.25rem -0.65rem 0.4rem;
+  opacity: 0.85;
+}
+
+/* ── Toast notifications ─────────────────────── */
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 9000;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: rgba(10, 14, 28, 0.95);
+  border: 1px solid rgba(0, 230, 118, 0.3);
+  border-radius: 10px;
+  padding: 0.55rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 0 12px rgba(0, 230, 118, 0.08);
+  animation: toast-in 0.25s ease;
+}
+.toast-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  flex-shrink: 0;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Charts header with range selector ───────── */
+.charts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 2rem 0 1rem;
+}
+.range-selector {
+  display: flex;
+  gap: 0.3rem;
+}
+.range-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+.range-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+.range-btn.active {
+  background: rgba(0, 207, 255, 0.12);
+  border-color: rgba(0, 207, 255, 0.4);
+  color: var(--accent);
+}
+
+/* ── 404 page ────────────────────────────────── */
+.not-found {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6rem 1rem;
+  text-align: center;
+  gap: 1rem;
+}
+.not-found-code {
+  font-size: 6rem;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  background: linear-gradient(135deg, var(--muted), rgba(0, 207, 255, 0.4));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+}
+.not-found-msg {
+  color: var(--muted);
+  font-size: 1rem;
+}
+.not-found-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.not-found-link:hover { text-decoration: underline; }
+
 /* ── Utility ─────────────────────────────────── */
 .mt-4 { margin-top: 1.5rem; }
 
