@@ -78,10 +78,12 @@ export default function DeviceCard({ device, latest = null, sparkline = [] }) {
                 <span className="val-label">PM2.5</span>
                 <span className="val-num">{dust.P2.toFixed(1)} µg/m³</span>
               </div>
-              <div className="val">
-                <span className="val-label">PM10</span>
-                <span className="val-num">{dust.P1.toFixed(1)} µg/m³</span>
-              </div>
+              {dust.P1 != null && (
+                <div className="val">
+                  <span className="val-label">PM10</span>
+                  <span className="val-num">{dust.P1.toFixed(1)} µg/m³</span>
+                </div>
+              )}
             </>
           )}
         </div>
