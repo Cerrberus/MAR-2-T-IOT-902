@@ -94,7 +94,8 @@ async def forward(payload: MeasurementPayload, sensor_community_id: int | None) 
 
     url = settings.sensor_community_url
     async with httpx.AsyncClient(timeout=10.0) as client:
-        await _post(client, url, sensor_community_id, PIN_DUST, _post_body(_dust_values(payload)))
+        if payload.sensors.dust is not None:
+            await _post(client, url, sensor_community_id, PIN_DUST, _post_body(_dust_values(payload)))
         await _post(
             client, url, sensor_community_id, PIN_BME280, _post_body(_bme280_values(payload))
         )

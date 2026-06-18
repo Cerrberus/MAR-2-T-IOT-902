@@ -1,7 +1,13 @@
-import { useState, useEffect } from 'react'
+import PropTypes from 'prop-types'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getDevice, getDeviceLatest, getDeviceBatteryHistory, getMeasurements } from '../api/client'
 import SensorChart from '../components/SensorChart'
+import { relativeTime } from '../utils'
+
+const POLL_MS = 20_000
+const RANGE_LABELS = { '1h': '1 h', '6h': '6 h', '24h': '24 h', all: 'Tout' }
+const RANGE_DURATIONS = { '1h': 3_600_000, '6h': 21_600_000, '24h': 86_400_000 }
 
 function Field({ label, value }) {
   if (value == null) return null
@@ -13,17 +19,63 @@ function Field({ label, value }) {
   )
 }
 
+Field.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+}
+Field.defaultProps = { value: null }
+
 function AirQualityBadge({ pm25 }) {
   let label, cls
   if (pm25 < 12) { label = 'Bonne'; cls = 'aq-good' }
   else if (pm25 < 35) { label = 'Modérée'; cls = 'aq-moderate' }
   else if (pm25 < 55) { label = 'Mauvaise'; cls = 'aq-unhealthy' }
   else { label = 'Très mauvaise'; cls = 'aq-hazardous' }
-  return (
-    <div className={`aq-badge ${cls}`}>
-      {label} - PM2.5 = {pm25.toFixed(1)} µg/m³
-    </div>
-  )
+  return <div className={`aq-badge ${cls}`}>{label} — PM2.5 = {pm25.toFixed(1)} µg/m³</div>
+}
+
+AirQualityBadge.propTypes = { pm25: PropTypes.number.isRequired }
+
+function batteryBarClass(pct) {
+  if (pct >= 50) return 'battery-ok'
+  if (pct >= 20) return 'battery-mid'
+  return 'battery-low'
+}
+
+function buildMeasurementParams(id, timeRange) {
+  const duration = RANGE_DURATIONS[timeRange]
+  return {
+    device_id: id,
+    limit: duration ? 200 : 50,
+    ...(duration && { from: new Date(Date.now() - duration).toISOString() }),
+  }
+}
+
+function toChartPoint(m) {
+  return {
+    timestamp: m.timestamp,
+    temperature: m.sensors.bme280?.temperature ?? null,
+    humidity: m.sensors.bme280?.humidity ?? null,
+    pressure: m.sensors.bme280?.pressure ?? null,
+    pm25: m.sensors.dust?.P2 ?? null,
+    pm10: m.sensors.dust?.P1 ?? null,
+    battery: m.battery?.percentage ?? null,
+  }
+}
+
+async function fetchDeviceData(id, timeRange) {
+  const [dev, lat, bat, meas] = await Promise.all([
+    getDevice(id),
+    getDeviceLatest(id).catch(() => null),
+    getDeviceBatteryHistory(id, 20).catch(() => ({ items: [] })),
+    getMeasurements(buildMeasurementParams(id, timeRange)).catch(() => ({ items: [] })),
+  ])
+  return {
+    device: dev,
+    latest: lat,
+    batteryHistory: bat.items ?? [],
+    chartData: [...(meas.items ?? [])].reverse().map(toChartPoint),
+  }
 }
 
 export default function DeviceDetail() {
@@ -34,35 +86,31 @@ export default function DeviceDetail() {
   const [chartData, setChartData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [timeRange, setTimeRange] = useState('all')
+  const aliveRef = useRef(true)
+
+  const applyData = useCallback((data) => {
+    if (!aliveRef.current) return
+    setDevice(data.device)
+    setLatest(data.latest)
+    setBatteryHistory(data.batteryHistory)
+    setChartData(data.chartData)
+  }, [])
 
   useEffect(() => {
-    async function load() {
-      const [dev, lat, bat, meas] = await Promise.all([
-        getDevice(id),
-        getDeviceLatest(id).catch(() => null),
-        getDeviceBatteryHistory(id, 20).catch(() => ({ items: [] })),
-        getMeasurements({ device_id: id, limit: 50 }).catch(() => ({ items: [] })),
-      ])
-      setDevice(dev)
-      setLatest(lat)
-      setBatteryHistory(bat.items ?? [])
-      // oldest-first for charts
-      setChartData(
-        [...(meas.items ?? [])].reverse().map((m) => ({
-          timestamp: m.timestamp,
-          temperature: m.sensors.bme280?.temperature ?? null,
-          humidity: m.sensors.bme280?.humidity ?? null,
-          pressure: m.sensors.bme280?.pressure ?? null,
-          pm25: m.sensors.dust?.P2 ?? null,
-          pm10: m.sensors.dust?.P1 ?? null,
-          battery: m.battery?.percentage ?? null,
-        })),
-      )
-    }
-    load()
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [id])
+    aliveRef.current = true
+
+    fetchDeviceData(id, timeRange)
+      .then(applyData)
+      .catch((err) => { if (aliveRef.current) setError(err.message) })
+      .finally(() => { if (aliveRef.current) setLoading(false) })
+
+    const timer = setInterval(() => {
+      fetchDeviceData(id, timeRange).then(applyData).catch(() => {})
+    }, POLL_MS)
+
+    return () => { aliveRef.current = false; clearInterval(timer) }
+  }, [id, timeRange, applyData])
 
   if (loading) return <div className="state-msg"><span className="loader" />Chargement…</div>
   if (error) return <div className="state-msg error">Erreur : {error}</div>
@@ -77,84 +125,80 @@ export default function DeviceDetail() {
   return (
     <div className="container">
       <Link to="/" className="back-link">← Retour</Link>
-      <h1 className="page-title gradient-text">{latest?.device?.id ?? device.id}</h1>
+      <h1 className="page-title">{device.id}</h1>
 
-      {/* ── Métriques clés ── */}
+      {latest == null && (
+        <div className="offline-banner">
+          Aucune mesure disponible — dernier contact {relativeTime(device.last_seen_at)}
+        </div>
+      )}
+
       <div className="metric-row">
-        {latest?.sensors?.bme280?.temperature != null && (
+        {bme?.temperature != null && (
           <div className="metric-chip" style={{ '--mc': '#ff6b6b' }}>
             <span className="metric-icon">🌡️</span>
-            <span className="metric-val">{latest.sensors.bme280.temperature.toFixed(1)} °C</span>
+            <span className="metric-val">{bme.temperature.toFixed(1)} °C</span>
             <span className="metric-lbl">Température</span>
           </div>
         )}
-        {latest?.sensors?.dust?.P2 != null && (
+        {dust?.P2 != null && (
           <div className="metric-chip" style={{ '--mc': '#00cfff' }}>
             <span className="metric-icon">💨</span>
-            <span className="metric-val">{latest.sensors.dust.P2.toFixed(1)} µg/m³</span>
+            <span className="metric-val">{dust.P2.toFixed(1)} µg/m³</span>
             <span className="metric-lbl">PM2.5</span>
           </div>
         )}
-        {latest?.battery?.percentage != null && (
+        {battery?.percentage != null && (
           <div className="metric-chip" style={{ '--mc': '#00e676' }}>
             <span className="metric-icon">🔋</span>
-            <span className="metric-val">{latest.battery.percentage} %</span>
+            <span className="metric-val">{battery.percentage} %</span>
             <span className="metric-lbl">Batterie</span>
           </div>
         )}
-        {latest?.transmission?.rssi != null && (
+        {transmission?.rssi != null && (
           <div className="metric-chip" style={{ '--mc': '#a855f7' }}>
             <span className="metric-icon">📶</span>
-            <span className="metric-val">{latest.transmission.rssi} dBm</span>
+            <span className="metric-val">{transmission.rssi} dBm</span>
             <span className="metric-lbl">RSSI</span>
           </div>
         )}
       </div>
 
-      {/* ── Graphiques ── */}
-      {chartData.length > 0 && (
-        <>
-          <h2 className="section-title">Historique</h2>
-          <div className="charts-row">
-            <SensorChart
-              data={chartData}
-              dataKey="temperature"
-              label="Température"
-              color="#ff6b6b"
-              unit="°C"
-            />
-            {chartData.some((d) => d.pm25 != null) && (
-              <SensorChart
-                data={chartData}
-                dataKey="pm25"
-                label="PM2.5"
-                color="#00cfff"
-                unit="µg/m³"
-              />
-            )}
-            {chartData.some((d) => d.humidity != null) && (
-              <SensorChart
-                data={chartData}
-                dataKey="humidity"
-                label="Humidité"
-                color="#a855f7"
-                unit="%"
-              />
-            )}
-            <SensorChart
-              data={chartData}
-              dataKey="battery"
-              label="Batterie"
-              color="#00e676"
-              unit="%"
-            />
-          </div>
-        </>
+      <div className="charts-header">
+        <h2 className="section-title" style={{ margin: 0 }}>Historique</h2>
+        <div className="range-selector">
+          {Object.entries(RANGE_LABELS).map(([key, label]) => (
+            <button
+              key={key}
+              className={`range-btn${timeRange === key ? ' active' : ''}`}
+              onClick={() => setTimeRange(key)}
+              type="button"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {chartData.length > 0 ? (
+        <div className="charts-row">
+          <SensorChart data={chartData} dataKey="temperature" label="Température" color="#ff6b6b" unit="°C" />
+          {chartData.some((d) => d.pm25 != null) && (
+            <SensorChart data={chartData} dataKey="pm25" label="PM2.5" color="#00cfff" unit="µg/m³" />
+          )}
+          {chartData.some((d) => d.humidity != null) && (
+            <SensorChart data={chartData} dataKey="humidity" label="Humidité" color="#a855f7" unit="%" />
+          )}
+          <SensorChart data={chartData} dataKey="battery" label="Batterie" color="#00e676" unit="%" />
+        </div>
+      ) : (
+        <p className="empty-state" style={{ marginBottom: '1rem' }}>
+          Aucune donnée sur cette plage de temps.
+        </p>
       )}
 
       <h2 className="section-title">Informations détaillées</h2>
       <div className="section-grid">
-        {/* Informations générales */}
         <section className="card">
           <h2>Informations</h2>
           <Field label="Firmware" value={device.firmware_version} />
@@ -166,15 +210,12 @@ export default function DeviceDetail() {
           <Field label="Mesures totales" value={device.measurement_count} />
         </section>
 
-        {/* Environnement (BME280) */}
         {bme && (
           <section className="card">
             <h2>Environnement</h2>
             <Field label="Température" value={`${bme.temperature.toFixed(1)} °C`} />
             <Field label="Pression" value={`${bme.pressure.toFixed(1)} hPa`} />
-            {bme.humidity != null && (
-              <Field label="Humidité" value={`${bme.humidity.toFixed(0)} %`} />
-            )}
+            {bme.humidity != null && <Field label="Humidité" value={`${bme.humidity.toFixed(0)} %`} />}
             <Field
               label="Horodatage"
               value={latest?.timestamp ? new Date(latest.timestamp).toLocaleString('fr-FR') : null}
@@ -182,7 +223,6 @@ export default function DeviceDetail() {
           </section>
         )}
 
-        {/* Qualité de l'air (capteur à poussière) */}
         {dust && (
           <section className="card">
             <h2>Qualité de l'air</h2>
@@ -193,7 +233,6 @@ export default function DeviceDetail() {
           </section>
         )}
 
-        {/* Batterie */}
         {battery && (
           <section className="card">
             <h2>Batterie</h2>
@@ -202,14 +241,13 @@ export default function DeviceDetail() {
             <Field label="En charge" value={battery.charging ? 'Oui ⚡' : 'Non'} />
             <div className="battery-bar-wrap">
               <div
-                className={`battery-bar ${battery.percentage >= 50 ? 'battery-ok' : battery.percentage >= 20 ? 'battery-mid' : 'battery-low'}`}
+                className={`battery-bar ${batteryBarClass(battery.percentage)}`}
                 style={{ width: `${battery.percentage}%` }}
               />
             </div>
           </section>
         )}
 
-        {/* Transmission LoRa */}
         {transmission && (
           <section className="card">
             <h2>Transmission</h2>
@@ -219,7 +257,6 @@ export default function DeviceDetail() {
           </section>
         )}
 
-        {/* Microphone */}
         {microphone && (
           <section className="card">
             <h2>Microphone</h2>
@@ -229,10 +266,9 @@ export default function DeviceDetail() {
         )}
       </div>
 
-      {/* Historique batterie */}
       {batteryHistory.length > 0 && (
         <section className="card mt-4">
-          <h2>Historique batterie (10 dernières entrées)</h2>
+          <h2>Historique batterie</h2>
           <table className="data-table">
             <thead>
               <tr>
@@ -243,12 +279,12 @@ export default function DeviceDetail() {
               </tr>
             </thead>
             <tbody>
-              {batteryHistory.map((entry, i) => (
-                <tr key={i}>
+              {batteryHistory.map((entry) => (
+                <tr key={entry.timestamp}>
                   <td>{new Date(entry.timestamp).toLocaleString('fr-FR')}</td>
                   <td>{entry.percentage} %</td>
                   <td>{entry.voltage_v.toFixed(2)}</td>
-                  <td>{entry.charging ? '⚡' : '-'}</td>
+                  <td>{entry.charging ? '⚡' : '—'}</td>
                 </tr>
               ))}
             </tbody>

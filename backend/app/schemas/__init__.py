@@ -24,6 +24,7 @@ from app.schemas.generated import (
     MeasurementAccepted,
     MeasurementList,
     MeasurementPayload,
+    MicrophoneSensor,
     Sensors,
     Transmission,
 )
@@ -45,6 +46,7 @@ __all__ = [
     "MeasurementAccepted",
     "MeasurementList",
     "MeasurementPayload",
+    "MicrophoneSensor",
     "Sensors",
     "Transmission",
 ]

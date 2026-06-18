@@ -27,7 +27,12 @@ class Settings(BaseSettings):
 
     openapi_path: str = Field(default="openapi.yaml", alias="OPENAPI_PATH")
 
-    @field_validator("gateway_tokens", mode="before")
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:5173"],
+        alias="CORS_ORIGINS",
+    )
+
+    @field_validator("gateway_tokens", "cors_origins", mode="before")
     @classmethod
     def split_tokens(cls, v: str | list[str]) -> list[str]:
         if isinstance(v, str):
