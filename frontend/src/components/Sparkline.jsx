@@ -2,7 +2,7 @@ import { useId } from 'react'
 import PropTypes from 'prop-types'
 import { ResponsiveContainer, AreaChart, Area } from 'recharts'
 
-export default function Sparkline({ data, dataKey, color }) {
+export default function Sparkline({ data, dataKey, color = '#00cfff' }) {
   const uid = useId()
   const gradId = `sg-${uid}-${dataKey}`
 
@@ -41,6 +41,3 @@ Sparkline.propTypes = {
   color: PropTypes.string,
 }
 
-Sparkline.defaultProps = {
-  color: '#00cfff',
-}

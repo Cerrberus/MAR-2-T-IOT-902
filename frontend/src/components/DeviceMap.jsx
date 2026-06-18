@@ -35,6 +35,7 @@ export default function DeviceMap({ entries }) {
     const loc = e.latest?.device?.location ?? e.device.location
     return loc && (loc.latitude !== 0 || loc.longitude !== 0)
   })
+
   if (located.length === 0) return null
 
   const lats = located.map((e) => (e.latest?.device?.location ?? e.device.location).latitude)
@@ -62,26 +63,18 @@ export default function DeviceMap({ entries }) {
           const isOnline = latest != null
           const markerColor = pm25 == null ? '#00cfff' : pmColor(pm25)
           const icon = isOnline ? createOnlineIcon(markerColor) : OFFLINE_ICON
+          const displayId = latest?.device?.id ?? device.id
 
           return (
             <Marker
               key={device.id}
               position={[loc.latitude, loc.longitude]}
-              icon={createPulseIcon(pmColor(pm25))}
-            >
-              <Popup>
-                <div className="map-popup">
-                  <div className="map-popup-id">{latest?.device?.id ?? device.id}</div>
-                  {temp != null && <div>🌡️ {temp.toFixed(1)} °C</div>}
-                  {pm25 != null && <div>💨 PM2.5 : {pm25.toFixed(1)} µg/m³</div>}
-                  {bat != null && <div>🔋 {bat} %</div>}
-              position={[device.location.latitude, device.location.longitude]}
               icon={icon}
             >
               <Popup>
                 <div className="map-popup">
                   <div className="map-popup-id">
-                    {device.id}
+                    {displayId}
                     {!isOnline && <span className="map-popup-offline-tag">hors ligne</span>}
                   </div>
                   {isOnline && (

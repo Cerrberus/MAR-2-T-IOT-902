@@ -9,7 +9,7 @@ const POLL_MS = 20_000
 const RANGE_LABELS = { '1h': '1 h', '6h': '6 h', '24h': '24 h', all: 'Tout' }
 const RANGE_DURATIONS = { '1h': 3_600_000, '6h': 21_600_000, '24h': 86_400_000 }
 
-function Field({ label, value }) {
+function Field({ label, value = null }) {
   if (value == null) return null
   return (
     <div className="field">
@@ -23,7 +23,6 @@ Field.propTypes = {
   label: PropTypes.string.isRequired,
   value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 }
-Field.defaultProps = { value: null }
 
 function AirQualityBadge({ pm25 }) {
   let label, cls
