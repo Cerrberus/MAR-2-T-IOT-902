@@ -51,7 +51,7 @@ def _bme280_values(payload: MeasurementPayload) -> list[dict[str, str | float]]:
 async def _post(
     client: httpx.AsyncClient,
     url: str,
-    sensor_community_id: int,
+    device_id: str,
     pin: int,
     body: dict,
 ) -> None:
@@ -60,7 +60,7 @@ async def _post(
             url,
             json=body,
             headers={
-                "X-Sensor": str(sensor_community_id),
+                "X-Sensor": device_id,
                 "X-Pin": str(pin),
                 "Content-Type": "application/json",
             },
@@ -68,14 +68,14 @@ async def _post(
         resp.raise_for_status()
         logger.info(
             "sensor.community push ok sensor=%s pin=%s status=%s",
-            sensor_community_id,
+            device_id,
             pin,
             resp.status_code,
         )
     except httpx.HTTPError as exc:
         logger.warning(
             "sensor.community push failed sensor=%s pin=%s error=%s",
-            sensor_community_id,
+            device_id,
             pin,
             exc,
         )
@@ -95,7 +95,8 @@ async def forward(payload: MeasurementPayload, sensor_community_id: int | None) 
     url = settings.sensor_community_url
     async with httpx.AsyncClient(timeout=10.0) as client:
         if payload.sensors.dust is not None:
-            await _post(client, url, sensor_community_id, PIN_DUST, _post_body(_dust_values(payload)))
-        await _post(
-            client, url, sensor_community_id, PIN_BME280, _post_body(_bme280_values(payload))
-        )
+            await _post(client, url, payload.device.id, PIN_DUST, _post_body(_dust_values(payload)))
+        if payload.sensors.bme280 is not None:
+            await _post(
+                client, url, payload.device.id, PIN_BME280, _post_body(_bme280_values(payload))
+            )
