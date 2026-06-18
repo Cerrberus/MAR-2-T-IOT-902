@@ -73,7 +73,7 @@ class Battery(_Model):
 
 class DustSensor(_Model):
     type: str
-    P1: float = Field(ge=0)
+    P1: float | None = Field(default=None, ge=0)
     P2: float = Field(ge=0)
 
 
@@ -91,7 +91,7 @@ class MicrophoneSensor(_Model):
 
 class Sensors(_Model):
     dust: DustSensor | None = None
-    bme280: Bme280Sensor
+    bme280: Bme280Sensor | None = None
     microphone: MicrophoneSensor | None = None
 
 

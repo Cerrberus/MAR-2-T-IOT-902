@@ -46,6 +46,8 @@ function withoutToast(id) {
   return (toasts) => toasts.filter((t) => t.id !== id)
 }
 
+const SENSOR_KINDS = ['gps', 'bme280', 'dust', 'battery', 'lora', 'microphone']
+
 export default function Dashboard() {
   const [health, setHealth] = useState(null)
   const [entries, setEntries] = useState([])
@@ -102,18 +104,31 @@ export default function Dashboard() {
   const withLatest = entries.filter((e) => e.latest)
   const offlineCount = entries.length - withLatest.length
   const avgTemp =
-    withLatest.length > 0
+    tempEntries.length > 0
       ? (
-          withLatest.reduce((s, e) => s + (e.latest.sensors.bme280?.temperature ?? 0), 0) /
-          withLatest.length
+          tempEntries.reduce((s, e) => s + e.latest.sensors.bme280.temperature, 0) /
+          tempEntries.length
         ).toFixed(1)
       : null
-  const dustEntries = withLatest.filter((e) => e.latest.sensors.dust)
+  const dustEntries = entries.filter((e) => e.latest.sensors?.dust)
   const avgPm25 =
     dustEntries.length > 0
       ? (dustEntries.reduce((s, e) => s + e.latest.sensors.dust.P2, 0) / dustEntries.length).toFixed(1)
       : null
+  const batteryEntries = entries.filter((e) => e.latest.battery && e.latest.battery.voltage_v > 0)
+  const avgBattery =
+    batteryEntries.length > 0
+      ? Math.round(
+          batteryEntries.reduce((s, e) => s + e.latest.battery.percentage, 0) /
+            batteryEntries.length,
+        )
+      : null
   const totalMeasurements = entries.reduce((s, e) => s + (e.device.measurement_count ?? 0), 0)
+
+  const tiles = entries.flatMap(({ device, latest }) => {
+    const deviceId = latest?.device?.id ?? device.id
+    return SENSOR_KINDS.map((kind) => ({ key: `${deviceId}:${kind}`, deviceId, kind, latest }))
+  })
 
   return (
     <div className="container">
@@ -154,6 +169,16 @@ export default function Dashboard() {
             <div className="stat-label">PM2.5 moyen</div>
           </div>
         )}
+        {avgBattery !== null && (
+          <div className="stat-card">
+            <div className="stat-icon">🔋</div>
+            <div className="stat-value">
+              {avgBattery}
+              <span className="stat-unit"> %</span>
+            </div>
+            <div className="stat-label">Batterie moyenne</div>
+          </div>
+        )}
         <div className="stat-card">
           <div className="stat-value">{totalMeasurements.toLocaleString('fr-FR')}</div>
           <div className="stat-label">Mesures totales</div>
@@ -169,9 +194,9 @@ export default function Dashboard() {
         <div className="device-grid">
           {entries.map(({ device, latest, sparkline }) => (
             <Link
-              key={device.id}
-              to={`/devices/${encodeURIComponent(device.id)}`}
-              className="device-link"
+              key={key}
+              to={`/devices/${encodeURIComponent(deviceId)}`}
+              className="tile-link"
             >
               <DeviceCard device={device} latest={latest} sparkline={sparkline} />
             </Link>

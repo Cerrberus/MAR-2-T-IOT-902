@@ -31,7 +31,7 @@
 #define GPS_TX_PIN  12   // ESP32 envoie vers GPS RX
 #define GPS_BAUD    9600
 
-// ─── I2C AXP192 ──────────────────────────────────────────────────────────────
+// ─── I2C AXP2101 (T-Beam Q410) ───────────────────────────────────────────────
 #define PMU_SDA 21
 #define PMU_SCL 22
 
@@ -42,23 +42,23 @@
 #define LORA_CR     5
 #define LORA_POWER  10
 
-XPowersAXP192  PMU;
+XPowersAXP2101 PMU;
 SX1276         radio = new Module(LORA_NSS, LORA_DIO0, LORA_RST, LORA_DIO1);
 TinyGPSPlus    gps;
 HardwareSerial gpsSerial(1);   // UART1 de l'ESP32
 
 int counter = 0;
 
-// ─── Initialisation AXP192 ───────────────────────────────────────────────────
+// ─── Initialisation AXP2101 (T-Beam Q410) ────────────────────────────────────
 bool initPMU() {
     Wire.begin(PMU_SDA, PMU_SCL);
-    if (!PMU.begin(Wire, AXP192_SLAVE_ADDRESS, PMU_SDA, PMU_SCL)) {
+    if (!PMU.begin(Wire, AXP2101_SLAVE_ADDRESS, PMU_SDA, PMU_SCL)) {
         return false;
     }
-    PMU.setLDO2Voltage(3300);
-    PMU.enableLDO2();   // Alimente le SX1276 (LoRa)
-    PMU.setLDO3Voltage(3300);
-    PMU.enableLDO3();   // Alimente le module GPS
+    PMU.setALDO2Voltage(3300);
+    PMU.enableALDO2();   // Alimente le SX1276 (LoRa)
+    PMU.setALDO3Voltage(3300);
+    PMU.enableALDO3();   // Alimente le module GPS
     delay(200);
     return true;
 }

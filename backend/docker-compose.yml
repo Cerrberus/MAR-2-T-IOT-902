@@ -31,7 +31,7 @@ services:
       WORKERS: ${WORKERS:-2}
       SENSOR_COMMUNITY_ENABLED: ${SENSOR_COMMUNITY_ENABLED:-false}
       SENSOR_COMMUNITY_URL: ${SENSOR_COMMUNITY_URL:-https://api.sensor.community/v1/push-sensor-data/}
-    command: ["sh", "scripts/start.sh"]
+    command: ["sh", "-c", "sed -i 's/\\r//' scripts/start.sh && sh scripts/start.sh"]
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:

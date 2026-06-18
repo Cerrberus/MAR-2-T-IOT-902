@@ -1,0 +1,24 @@
+{
+  "VsCodeTaskButtons.tasks": [
+    {
+      "label": "$(cloud-upload) T-Beam",
+      "task": "Flash T-Beam",
+      "tooltip": "Flash le firmware principal sur le T-Beam"
+    },
+    {
+      "label": "$(terminal) Monitor T-Beam",
+      "task": "Monitor T-Beam",
+      "tooltip": "Ouvre le monitor du T-Beam"
+    },
+    {
+      "label": "$(cloud-upload) Heltec",
+      "task": "Flash Heltec (gateway)",
+      "tooltip": "Flash le récepteur Heltec"
+    },
+    {
+      "label": "$(terminal) Monitor Heltec",
+      "task": "Monitor Heltec (gateway)",
+      "tooltip": "Ouvre le monitor du Heltec"
+    }
+  ]
+}

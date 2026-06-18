@@ -1,0 +1,49 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Flash T-Beam",
+      "type": "shell",
+      "command": "pio run -e tbeam_main --target upload",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "${env:USERPROFILE}\\.platformio\\penv\\Scripts;${env:PATH}" }
+      },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "Monitor T-Beam",
+      "type": "shell",
+      "command": "pio device monitor -e tbeam_main",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "${env:USERPROFILE}\\.platformio\\penv\\Scripts;${env:PATH}" }
+      },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "Flash Heltec (gateway)",
+      "type": "shell",
+      "command": "pio run -e heltec_gateway --target upload",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "${env:USERPROFILE}\\.platformio\\penv\\Scripts;${env:PATH}" }
+      },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "Monitor Heltec (gateway)",
+      "type": "shell",
+      "command": "pio device monitor -e heltec_gateway",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "${env:USERPROFILE}\\.platformio\\penv\\Scripts;${env:PATH}" }
+      },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    }
+  ]
+}
