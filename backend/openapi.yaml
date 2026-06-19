@@ -231,6 +231,41 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/v1/devices/{deviceId}/sync:
+    post:
+      tags: [devices]
+      summary: Re-forward stored measurements to sensor.community
+      description: |
+        Reads measurements already stored in the database and forwards them
+        to sensor.community. Useful when `SENSOR_COMMUNITY_ENABLED` was false
+        at ingestion time. Runs synchronously — large ranges may be slow.
+      operationId: syncToSensorCommunity
+      parameters:
+        - $ref: "#/components/parameters/DeviceIdPath"
+        - $ref: "#/components/parameters/FromTimestamp"
+        - $ref: "#/components/parameters/ToTimestamp"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+            default: 500
+      responses:
+        "200":
+          description: Sync completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
   /api/v1/devices/{deviceId}/battery/history:
     get:
       tags: [battery]
@@ -656,3 +691,16 @@ components:
         next_cursor:
           type: string
           nullable: true
+
+    SyncResult:
+      type: object
+      required: [device_id, forwarded, skipped]
+      properties:
+        device_id:
+          type: string
+        forwarded:
+          type: integer
+          description: Number of measurements forwarded to sensor.community
+        skipped:
+          type: integer
+          description: Number of measurements skipped (no sensor data to forward)

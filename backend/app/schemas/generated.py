@@ -129,3 +129,9 @@ class BatteryHistory(_Model):
     device_id: str
     items: list[BatteryHistoryEntry]
     next_cursor: str | None = None
+
+
+class SyncResult(_Model):
+    device_id: str
+    forwarded: int
+    skipped: int

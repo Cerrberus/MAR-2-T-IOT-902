@@ -50,6 +50,14 @@ services:
       retries: 20
       start_period: 10s
 
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    ports:
+      - "${ADMINER_PORT:-8888}:8080"
+    depends_on:
+      - db
+
   sensor-community-mock:
     image: mendhak/http-https-echo:34
     profiles: ["dev"]
