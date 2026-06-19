@@ -24,6 +24,12 @@ PIN_DUST = 1
 PIN_BME280 = 11
 SOFTWARE_VERSION = "sensor-sensei/1.0"
 
+# sensor.community limite à 2 capteurs par device. Le BME280 du T-Beam
+# est enregistré sous un chip ID virtuel séparé sur sensor.community.
+BME_DEVICE_ALIAS: dict[str, str] = {
+    "esp32-041f746cdda0": "esp32-6253",
+}
+
 
 def _post_body(values: list[dict[str, str | float]]) -> dict:
     return {"software_version": SOFTWARE_VERSION, "sensordatavalues": values}
@@ -95,10 +101,12 @@ async def forward(payload: MeasurementPayload, sensor_community_id: int | None) 
         return
 
     url = settings.sensor_community_url
+    bme_device_id = BME_DEVICE_ALIAS.get(payload.device.id) or payload.device.id
+
     async with httpx.AsyncClient(timeout=10.0) as client:
         if payload.sensors.dust is not None:
             await _post(client, url, payload.device.id, PIN_DUST, _post_body(_dust_values(payload)))
         if payload.sensors.bme280 is not None:
             await _post(
-                client, url, payload.device.id, PIN_BME280, _post_body(_bme280_values(payload))
+                client, url, bme_device_id, PIN_BME280, _post_body(_bme280_values(payload))
             )

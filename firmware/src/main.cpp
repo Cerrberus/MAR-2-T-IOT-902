@@ -6,7 +6,7 @@
 #include <Adafruit_BMP280.h>
 #include <TinyGPSPlus.h>
 
-#define PROJECT_DEVICE_ID        "tbeam-001"
+#define PROJECT_DEVICE_ID        "esp32-041f746cdda0"
 #define PROJECT_FIRMWARE_VERSION "1.0.0"
 
 // =============================================================================
