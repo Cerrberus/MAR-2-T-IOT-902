@@ -30,10 +30,12 @@ def _post_body(values: list[dict[str, str | float]]) -> dict:
 
 
 def _dust_values(payload: MeasurementPayload) -> list[dict[str, str | float]]:
-    return [
-        {"value_type": "P1", "value": str(payload.sensors.dust.P1)},
+    values: list[dict[str, str | float]] = [
         {"value_type": "P2", "value": str(payload.sensors.dust.P2)},
     ]
+    if payload.sensors.dust.P1 is not None:
+        values.append({"value_type": "P1", "value": str(payload.sensors.dust.P1)})
+    return values
 
 
 def _bme280_values(payload: MeasurementPayload) -> list[dict[str, str | float]]:
