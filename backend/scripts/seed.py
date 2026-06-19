@@ -23,6 +23,13 @@ DEVICES = [
         "longitude": 5.3698,
         "sensor_community_id": 60634,
     },
+    {
+        "id": "esp32-6253",
+        "firmware_version": "1.0.0",
+        "latitude": 43.2965,
+        "longitude": 5.3698,
+        "sensor_community_id": 60874,
+    },
 ]
 
 
