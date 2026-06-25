@@ -75,6 +75,7 @@ class DustSensor(_Model):
     type: str
     P1: float | None = Field(default=None, ge=0)
     P2: float = Field(ge=0)
+    index_pct: int | None = Field(default=None, ge=0, le=100)
 
 
 class Bme280Sensor(_Model):

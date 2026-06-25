@@ -149,6 +149,7 @@ static void apiPost(const String &loraJson, float rssi, float snr) {
 
     bool  hasDust   = src.containsKey("pm25");
     float pm25      = src["pm25"] | 0.0f;
+    int   dustIdx   = src["dust"] | -1;
 
     bool  hasBmp    = src.containsKey("temp") && src.containsKey("pres");
     float tempC     = src["temp"] | 0.0f;
@@ -177,8 +178,10 @@ static void apiPost(const String &loraJson, float rssi, float snr) {
 
     if (hasDust) {
         payload["sensors"]["dust"]["type"] = "GP2Y1010AU0F";
-        payload["sensors"]["dust"]["P1"]   = nullptr;  // GP2Y1010AU0F ne mesure pas le PM10
+        payload["sensors"]["dust"]["P1"]   = nullptr;
         payload["sensors"]["dust"]["P2"]   = pm25;
+        if (dustIdx >= 0)
+            payload["sensors"]["dust"]["index_pct"] = dustIdx;
     }
     if (hasBmp) {
         payload["sensors"]["bme280"]["type"]        = "BMP280";

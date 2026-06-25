@@ -541,6 +541,13 @@ components:
           minimum: 0
           description: PM2.5 particulate concentration (µg/m³)
           example: 12.8
+        index_pct:
+          type: integer
+          minimum: 0
+          maximum: 100
+          nullable: true
+          description: Internal dust quality index (0–100 %), as computed by the firmware
+          example: 33
 
     Bme280Sensor:
       type: object
