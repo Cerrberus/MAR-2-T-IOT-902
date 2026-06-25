@@ -112,7 +112,7 @@ export default function Dashboard() {
   const dustEntries = withLatest.filter((e) => e.latest.sensors?.dust)
   const avgPm25 =
     dustEntries.length > 0
-      ? (dustEntries.reduce((s, e) => s + e.latest.sensors.dust.P2, 0) / dustEntries.length).toFixed(1)
+      ? Math.min(100, Math.round(dustEntries.reduce((s, e) => s + e.latest.sensors.dust.P2, 0) / dustEntries.length / 150 * 100))
       : null
   const batteryEntries = withLatest.filter((e) => e.latest.battery && e.latest.battery.voltage_v > 0)
   const avgBattery =
@@ -159,8 +159,8 @@ export default function Dashboard() {
         )}
         {avgPm25 !== null && (
           <div className="stat-card">
-            <div className="stat-value">{avgPm25}<span className="stat-unit"> µg/m³</span></div>
-            <div className="stat-label">PM2.5 moyen</div>
+            <div className="stat-value">{avgPm25}<span className="stat-unit"> %</span></div>
+            <div className="stat-label">Poussière moyenne</div>
           </div>
         )}
         {avgBattery !== null && (
