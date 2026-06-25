@@ -16,8 +16,8 @@ function batteryClass(pct) {
   return 'battery-low'
 }
 
-function pmBarWidth(pm25) {
-  return `${Math.min(100, (pm25 / 150) * 100)}%`
+function dustPct(value, max) {
+  return Math.min(100, Math.round((value / max) * 100))
 }
 
 export default function DeviceCard({ device, latest = null, sparkline = [] }) {
@@ -75,13 +75,13 @@ export default function DeviceCard({ device, latest = null, sparkline = [] }) {
           {dust && (
             <>
               <div className={`val ${pmClass(dust.P2)}`}>
-                <span className="val-label">PM2.5</span>
-                <span className="val-num">{dust.P2.toFixed(1)} µg/m³</span>
+                <span className="val-label">Poussière fine</span>
+                <span className="val-num">{dustPct(dust.P2, 150)} %</span>
               </div>
               {dust.P1 != null && (
                 <div className="val">
-                  <span className="val-label">PM10</span>
-                  <span className="val-num">{dust.P1.toFixed(1)} µg/m³</span>
+                  <span className="val-label">Poussière grossière</span>
+                  <span className="val-num">{dustPct(dust.P1, 300)} %</span>
                 </div>
               )}
             </>
@@ -101,7 +101,7 @@ export default function DeviceCard({ device, latest = null, sparkline = [] }) {
         <div className="pm-bar-wrap">
           <div
             className={`pm-bar ${pmClass(dust.P2)}`}
-            style={{ width: pmBarWidth(dust.P2) }}
+            style={{ width: `${dustPct(dust.P2, 150)}%` }}
           />
         </div>
       )}
