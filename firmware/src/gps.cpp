@@ -2,17 +2,15 @@
 #include <Arduino.h>
 #include <TinyGPSPlus.h>
 
-// =============================================================================
-// Module GPS -- NEO-6M/M8N via UART (HardwareSerial 1)
-// =============================================================================
+// Module GPS — NEO-6M/M8N via UART1 (HardwareSerial 1)
 
-static const uint8_t  RX_PIN        = 34;
-static const uint8_t  TX_PIN        = 12;
-static const uint32_t BAUD_RATE     = 9600;
-static const uint32_t FEED_WINDOW_MS = 400;  // duree de lecture NMEA par cycle
+static const uint8_t  RX_PIN         = 34;   // ESP32 reçoit les trames NMEA
+static const uint8_t  TX_PIN         = 12;   // ESP32 envoie des commandes (rarement utilisé)
+static const uint32_t BAUD_RATE      = 9600;
+static const uint32_t FEED_WINDOW_MS = 400;  // durée de lecture NMEA par cycle (couvre plusieurs trames)
 
 static TinyGPSPlus    s_gps;
-static HardwareSerial s_serial(1);
+static HardwareSerial s_serial(1); // UART1
 
 void gpsSetup() {
     s_serial.begin(BAUD_RATE, SERIAL_8N1, RX_PIN, TX_PIN);
@@ -21,6 +19,7 @@ void gpsSetup() {
 }
 
 GpsReading gpsRead() {
+    // Alimente le parseur NMEA pendant FEED_WINDOW_MS pour capter les phrases GGA/RMC
     uint32_t deadline = millis() + FEED_WINDOW_MS;
     while (millis() < deadline) {
         while (s_serial.available()) {
@@ -29,6 +28,7 @@ GpsReading gpsRead() {
     }
 
     GpsReading r = {};
+    // age() < 2000 : rejette les fixes datant de plus de 2 s (données périmées)
     r.hasLocation = s_gps.location.isValid() && s_gps.location.age() < 2000;
     r.hasAltitude = s_gps.altitude.isValid() && s_gps.altitude.age() < 2000;
     r.hasSpeed    = s_gps.speed.isValid()    && s_gps.speed.age()    < 2000;

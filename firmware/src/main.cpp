@@ -7,13 +7,11 @@
 
 #define FIRMWARE_VERSION "1.0.0"
 
-// Généré au démarrage depuis l'adresse MAC — unique par carte
+// Généré au démarrage depuis l'adresse MAC eFuse — unique par puce, sans réseau
 static char g_deviceId[32];
 
-// =============================================================================
-// Payload LoRa -- construction du message a transmettre a la gateway
-// =============================================================================
-
+// Construit le payload JSON à envoyer par LoRa.
+// Les champs GPS / BMP / dust / batterie sont omis si le capteur n'est pas prêt.
 static String buildPayload(
     GpsReading  gps,
     BmpReading  bmp,
@@ -50,6 +48,7 @@ static String buildPayload(
         json += ",\"dust\":"  + String((unsigned int)dust.levelPct);
     }
 
+    // battVoltage == 0 si le PMU est absent (alimentation USB directe)
     if (battVoltage > 0.0f) {
         json += ",\"batt_v\":"  + String(battVoltage, 2);
         json += ",\"batt_p\":"  + String((unsigned int)battPercent);
@@ -60,6 +59,7 @@ static String buildPayload(
     return json;
 }
 
+// Barre de progression ASCII sur 20 caractères pour le moniteur série
 static void printBar(uint8_t pct) {
     const uint8_t width  = 20;
     uint8_t       filled = (pct * width + 50) / 100;
@@ -70,10 +70,8 @@ static void printBar(uint8_t pct) {
     Serial.print("]");
 }
 
-// =============================================================================
-
+// Dérive l'ID appareil depuis l'adresse MAC eFuse (6 octets, unique par puce)
 static void initDeviceId() {
-    // L'adresse MAC eFuse est unique par puce, disponible sans WiFi
     uint64_t mac = ESP.getEfuseMac();
     uint8_t  b[6];
     b[0] = (mac >> 40) & 0xFF;
@@ -87,8 +85,6 @@ static void initDeviceId() {
              b[0], b[1], b[2], b[3], b[4], b[5]);
 }
 
-// =============================================================================
-
 void setup() {
     Serial.begin(115200);
     initDeviceId();
@@ -96,7 +92,7 @@ void setup() {
     Serial.printf("\n[Boot] Device ID : %s\n", g_deviceId);
     Serial.printf("[Boot] Firmware  : %s\n\n", FIRMWARE_VERSION);
 
-    // PMU en premier : demarre le bus I2C et active les rails LoRa (ALDO2) + GPS (ALDO3)
+    // PMU en premier : démarre le bus I2C et active les rails ALDO2 (LoRa) + ALDO3 (GPS)
     pmuSetup();
 
     dustSetup();
@@ -120,7 +116,6 @@ void loop() {
     Serial.printf("  Device : %s   t = %lu ms\n", g_deviceId, millis());
     Serial.println("========================================");
 
-    // --- GPS ---
     Serial.println("  [GPS]");
     Serial.printf("  Satellites : %u   HDOP: %.1f\n", gps.satellites, gps.hdop);
     if (gps.hasLocation) {
@@ -132,7 +127,6 @@ void loop() {
     if (gps.hasSpeed)    Serial.printf("  Vitesse    : %.1f km/h\n", gps.speedKmh);
     Serial.println();
 
-    // --- BMP280 ---
     Serial.println("  [BMP280]");
     if (bmp.ready) {
         Serial.printf("  Temp     : %.2f degC\n",  bmp.tempC);
@@ -143,7 +137,6 @@ void loop() {
     }
     Serial.println();
 
-    // --- Poussiere ---
     Serial.printf("  [Dust]  state: %s\n", dust.state);
     Serial.printf("  LED off  : %7.2f ADC\n", dust.ledOffAvg);
     Serial.printf("  LED on   : %7.2f ADC\n", dust.ledOnAvg);
@@ -160,7 +153,6 @@ void loop() {
     }
     Serial.println();
 
-    // --- Batterie ---
     Serial.println("  [Battery]");
     if (battV > 0.0f) {
         Serial.printf("  %.2f V  %u%%  %s\n", battV, battPct, battChg ? "charging" : "discharging");
@@ -169,7 +161,6 @@ void loop() {
     }
     Serial.println();
 
-    // --- Envoi LoRa ---
     String payload = buildPayload(gps, bmp, dust, battV, battPct, battChg, s_seqNum);
     bool   sent    = loraSend(payload);
 

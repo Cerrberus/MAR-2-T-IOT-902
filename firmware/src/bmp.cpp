@@ -3,12 +3,9 @@
 #include <Wire.h>
 #include <Adafruit_BMP280.h>
 
-// =============================================================================
-// Module BMP280 -- temperature et pression atmospherique (I2C)
-//
-// Teste 0x76 puis 0x77 car la broche SDO varie selon les modules.
-// Wire.begin() est appele dans pmuSetup() (bus partage avec AXP2101).
-// =============================================================================
+// Module BMP280 — température et pression (I2C)
+// Teste 0x76 puis 0x77 : l'adresse dépend de la broche SDO du module.
+// Wire est démarré par pmuSetup() (bus I2C partagé avec l'AXP2101).
 
 static Adafruit_BMP280 s_bmp;
 static bool            s_ready = false;
@@ -23,6 +20,8 @@ void bmpSetup() {
         return;
     }
 
+    // Sur-échantillonnage x16 pression pour réduire le bruit, x2 temp suffit.
+    // Filtre IIR x16 pour atténuer les variations courtes (claquement de porte, vent).
     s_bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,
                       Adafruit_BMP280::SAMPLING_X2,
                       Adafruit_BMP280::SAMPLING_X16,
@@ -39,7 +38,7 @@ BmpReading bmpRead() {
         return r;
     }
     r.tempC       = s_bmp.readTemperature();
-    r.pressureHpa = s_bmp.readPressure() / 100.0f;
+    r.pressureHpa = s_bmp.readPressure() / 100.0f; // Pa → hPa
     r.altitudeM   = s_bmp.readAltitude(1013.25f);
     r.ready       = true;
     return r;

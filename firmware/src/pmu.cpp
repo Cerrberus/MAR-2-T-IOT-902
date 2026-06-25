@@ -3,12 +3,9 @@
 #include <Wire.h>
 #include <XPowersLib.h>
 
-// =============================================================================
-// Module PMU -- AXP2101 (gestion d'alimentation T-Beam Q410)
-//
-// Gere les rails d'alimentation du SX1276 (ALDO2) et du GPS (ALDO3).
-// Doit etre initialise en premier : il demarre aussi le bus I2C partage avec BMP280.
-// =============================================================================
+// Module PMU — AXP2101 (T-Beam Q410)
+// Gère les rails d'alimentation du SX1276 (ALDO2) et du GPS (ALDO3).
+// Démarre aussi Wire, bus I2C partagé avec le BMP280.
 
 static const uint8_t SDA_PIN = 21;
 static const uint8_t SCL_PIN = 22;
@@ -25,23 +22,26 @@ void pmuSetup() {
         return;
     }
     s_pmu.setALDO2Voltage(3300);
-    s_pmu.enableALDO2();   // Rail SX1276 (LoRa)
+    s_pmu.enableALDO2();   // Rail SX1276 (LoRa) — 3.3 V
     s_pmu.setALDO3Voltage(3300);
-    s_pmu.enableALDO3();   // Rail module GPS
+    s_pmu.enableALDO3();   // Rail module GPS — 3.3 V
+
+    // Délai pour laisser les rails se stabiliser avant l'init LoRa/GPS
     delay(200);
+
     s_ready = true;
     Serial.println("[PMU] AXP2101 initialise (ALDO2=LoRa 3.3V, ALDO3=GPS 3.3V).");
 }
 
 float pmuBatteryVoltage() {
     if (!s_ready) return 0.0f;
-    return s_pmu.getBattVoltage() / 1000.0f;
+    return s_pmu.getBattVoltage() / 1000.0f; // mV → V
 }
 
 uint8_t pmuBatteryPercent() {
     if (!s_ready) return 0;
     int pct = s_pmu.getBatteryPercent();
-    return (pct < 0) ? 0 : (uint8_t)pct;
+    return (pct < 0) ? 0 : (uint8_t)pct; // getBatteryPercent() retourne -1 si indisponible
 }
 
 bool pmuIsCharging() {
