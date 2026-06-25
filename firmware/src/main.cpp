@@ -1,11 +1,14 @@
+#include <Arduino.h>
 #include "pmu.h"
 #include "lora.h"
 #include "dust.h"
 #include "bmp.h"
 #include "gps.h"
 
-#define DEVICE_ID        "esp32-041f746cdda0"
 #define FIRMWARE_VERSION "1.0.0"
+
+// Généré au démarrage depuis l'adresse MAC — unique par carte
+static char g_deviceId[32];
 
 // =============================================================================
 // Payload LoRa -- construction du message a transmettre a la gateway
@@ -20,11 +23,11 @@ static String buildPayload(
     bool        battCharging,
     uint32_t    seqNum)
 {
-    char msgId[48];
-    snprintf(msgId, sizeof(msgId), "%s-%lu", DEVICE_ID, (unsigned long)millis());
+    char msgId[64];
+    snprintf(msgId, sizeof(msgId), "%s-%lu", g_deviceId, (unsigned long)millis());
 
     String json = "{";
-    json += "\"id\":\""   + String(DEVICE_ID) + "\"";
+    json += "\"id\":\""   + String(g_deviceId) + "\"";
     json += ",\"fw\":\""  + String(FIRMWARE_VERSION) + "\"";
     json += ",\"msg\":\"" + String(msgId) + "\"";
     json += ",\"seq\":"   + String(seqNum);
@@ -69,8 +72,29 @@ static void printBar(uint8_t pct) {
 
 // =============================================================================
 
+static void initDeviceId() {
+    // L'adresse MAC eFuse est unique par puce, disponible sans WiFi
+    uint64_t mac = ESP.getEfuseMac();
+    uint8_t  b[6];
+    b[0] = (mac >> 40) & 0xFF;
+    b[1] = (mac >> 32) & 0xFF;
+    b[2] = (mac >> 24) & 0xFF;
+    b[3] = (mac >> 16) & 0xFF;
+    b[4] = (mac >>  8) & 0xFF;
+    b[5] =  mac        & 0xFF;
+    snprintf(g_deviceId, sizeof(g_deviceId),
+             "esp32-%02x%02x%02x%02x%02x%02x",
+             b[0], b[1], b[2], b[3], b[4], b[5]);
+}
+
+// =============================================================================
+
 void setup() {
     Serial.begin(115200);
+    initDeviceId();
+
+    Serial.printf("\n[Boot] Device ID : %s\n", g_deviceId);
+    Serial.printf("[Boot] Firmware  : %s\n\n", FIRMWARE_VERSION);
 
     // PMU en premier : demarre le bus I2C et active les rails LoRa (ALDO2) + GPS (ALDO3)
     pmuSetup();
@@ -93,7 +117,7 @@ void loop() {
     const bool        battChg = pmuIsCharging();
 
     Serial.println("========================================");
-    Serial.printf("  t = %lu ms\n", millis());
+    Serial.printf("  Device : %s   t = %lu ms\n", g_deviceId, millis());
     Serial.println("========================================");
 
     // --- GPS ---

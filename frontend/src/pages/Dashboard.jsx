@@ -101,6 +101,15 @@ export default function Dashboard() {
 
   const withLatest = entries.filter((e) => e.latest)
   const offlineCount = entries.length - withLatest.length
+
+  // Compte les modules capteurs non-null (bme280, dust, microphone…) à travers tous les appareils
+  const activeSensorTypes = new Set()
+  withLatest.forEach((e) => {
+    const sensors = e.latest?.sensors ?? {}
+    Object.entries(sensors).forEach(([key, val]) => { if (val != null) activeSensorTypes.add(key) })
+  })
+  const activeSensorCount = activeSensorTypes.size
+
   const tempEntries = withLatest.filter((e) => e.latest.sensors?.bme280?.temperature != null)
   const avgTemp =
     tempEntries.length > 0
@@ -145,7 +154,7 @@ export default function Dashboard() {
       <div className="stat-grid">
         <div className="stat-card">
           <div className="stat-value">
-            {withLatest.length}
+            {activeSensorCount}
             {offlineCount > 0 && <span className="stat-offline"> / {entries.length}</span>}
           </div>
           <div className="stat-label">Capteurs actifs</div>
