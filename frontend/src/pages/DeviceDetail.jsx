@@ -30,7 +30,8 @@ function AirQualityBadge({ pm25 }) {
   else if (pm25 < 35) { label = 'Modérée'; cls = 'aq-moderate' }
   else if (pm25 < 55) { label = 'Mauvaise'; cls = 'aq-unhealthy' }
   else { label = 'Très mauvaise'; cls = 'aq-hazardous' }
-  return <div className={`aq-badge ${cls}`}>{label} — PM2.5 = {pm25.toFixed(1)} µg/m³</div>
+  const pct = Math.min(100, Math.round(pm25 / 150 * 100))
+  return <div className={`aq-badge ${cls}`}>{label} — {pct} % de la limite OMS</div>
 }
 
 AirQualityBadge.propTypes = { pm25: PropTypes.number.isRequired }
@@ -50,14 +51,18 @@ function buildMeasurementParams(id, timeRange) {
   }
 }
 
+function dustPct(value, max) {
+  return value == null ? null : Math.min(100, Math.round(value / max * 100))
+}
+
 function toChartPoint(m) {
   return {
     timestamp: m.timestamp,
     temperature: m.sensors.bme280?.temperature ?? null,
     humidity: m.sensors.bme280?.humidity ?? null,
     pressure: m.sensors.bme280?.pressure ?? null,
-    pm25: m.sensors.dust?.P2 ?? null,
-    pm10: m.sensors.dust?.P1 ?? null,
+    pm25: dustPct(m.sensors.dust?.P2 ?? null, 150),
+    pm10: dustPct(m.sensors.dust?.P1 ?? null, 300),
     battery: m.battery?.percentage ?? null,
   }
 }
@@ -143,8 +148,8 @@ export default function DeviceDetail() {
         {dust?.P2 != null && (
           <div className="metric-chip" style={{ '--mc': '#00cfff' }}>
             <span className="metric-icon">💨</span>
-            <span className="metric-val">{dust.P2.toFixed(1)} µg/m³</span>
-            <span className="metric-lbl">PM2.5</span>
+            <span className="metric-val">{dustPct(dust.P2, 150)} %</span>
+            <span className="metric-lbl">Poussière fine</span>
           </div>
         )}
         {battery?.percentage != null && (
@@ -183,7 +188,7 @@ export default function DeviceDetail() {
         <div className="charts-row">
           <SensorChart data={chartData} dataKey="temperature" label="Température" color="#ff6b6b" unit="°C" />
           {chartData.some((d) => d.pm25 != null) && (
-            <SensorChart data={chartData} dataKey="pm25" label="PM2.5" color="#00cfff" unit="µg/m³" />
+            <SensorChart data={chartData} dataKey="pm25" label="Poussière fine" color="#00cfff" unit="%" />
           )}
           {chartData.some((d) => d.humidity != null) && (
             <SensorChart data={chartData} dataKey="humidity" label="Humidité" color="#a855f7" unit="%" />
@@ -225,8 +230,8 @@ export default function DeviceDetail() {
         {dust && (
           <section className="card">
             <h2>Qualité de l'air</h2>
-            <Field label="PM10 (P1)" value={`${dust.P1.toFixed(1)} µg/m³`} />
-            <Field label="PM2.5 (P2)" value={`${dust.P2.toFixed(1)} µg/m³`} />
+            <Field label="Poussière fine (PM2.5)" value={`${dustPct(dust.P2, 150)} %`} />
+            {dust.P1 != null && <Field label="Poussière grossière (PM10)" value={`${dustPct(dust.P1, 300)} %`} />}
             <Field label="Capteur" value={dust.type} />
             <AirQualityBadge pm25={dust.P2} />
           </section>

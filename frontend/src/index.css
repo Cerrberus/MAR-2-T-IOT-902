@@ -154,12 +154,15 @@ body::before {
 
 /* ── Stat cards ──────────────────────────────── */
 .stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 0.85rem;
   margin-bottom: 2rem;
 }
 .stat-card {
+  flex: 1 1 160px;
+  max-width: 220px;
   background: var(--glass);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
@@ -334,18 +337,6 @@ body::before {
 }
 .sensor-row-label { color: var(--muted); }
 .sensor-row-value { font-weight: 700; font-family: monospace; }
-
-.battery-bar-wrap {
-  margin-top: 0.4rem;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.battery-bar { height: 100%; border-radius: 4px; transition: width 0.3s; }
-.battery-bar.battery-ok { background: var(--green); }
-.battery-bar.battery-mid { background: var(--yellow); }
-.battery-bar.battery-low { background: var(--red); }
 
 .sensor-tile-footer {
   margin-top: 0.65rem;
